@@ -4,18 +4,19 @@ const cadastrarConvidado = (req, res) => {
     const{
         nome,
         email,
-        evento_id
+        evento_id,
+        usuario_id
     } = req.body;
 
     const sql = `
         INSERT INTO Convidado
-        (nome, email, evento_id, status_confirmacao)
-        VALUES (?,?,?, 'PENDENTE')
+        (nome, email, evento_id, usuario_id, status_confirmacao)
+        VALUES (?, ?, ?, ?, 'PENDENTE')
     `;
 
     conexao.query(
         sql,
-        [nome, email,evento_id],
+        [nome, email,evento_id, usuario_id || null],
         (erro, resultado) => {
             if (erro) {
                 console.log(erro);

@@ -1,5 +1,4 @@
 const conexao = require('../config/db');
-const coenxao = require('../config/db');
 
 const cadastrarEvento = (req, res) => {
 
@@ -113,8 +112,61 @@ const buscarEventoUsuario = (req, res) => {
         }
     );
 };
+
+const acessarEvento = (req, res) => {
+    const {codigo_evento} = req.body;
+
+    if (!codigo_evento) {
+        return res.status(400).json({
+            erro: 'Código do evento não informado'
+        });
+    }
+
+    const sql = `
+        SELECT
+            evento_id,
+            codigo_evento,
+            tipo_evento,
+            quantidade_convidados,
+            descricao,
+            data_evento,
+            local_evento,
+            cidade_evento,
+            estado_evento
+        FROM evento WHERE codigo_evento = ?
+    `;
+
+    conexao.query(
+        sql,
+        [codigo_evento],
+        (erro, resultado) => {
+
+            if (erro) {
+                console.log(erro);
+
+                return res.status(500).json({
+                    erro: 'Erro ao buscar evento!!'
+                });
+            }
+
+            if (resultado.length === 0) {
+                return res.status(404).json({
+                    erro: 'Código do evento inválido!!'
+                });
+            }
+
+            return res.status(200).json({
+                mensagem: 'Evento encontrato',
+                evento: resultado[0]
+            });
+        }
+    );
+};
+
+
 module.exports = {
     cadastrarEvento,
     listarEvento,
-    buscarEventoUsuario
+    buscarEventoUsuario,
+    acessarEvento
 };

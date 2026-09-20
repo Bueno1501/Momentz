@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:frontend/screens/login_screen.dart';
+import 'package:frontend/screens/tipo_acesso_screen.dart';
 
 void main() {
   runApp(const MyApp());
@@ -59,7 +59,7 @@ class MyApp extends StatelessWidget {
 
       title: 'Momentz',
 
-      home: const LoginScreen(),
+      home: const TipoAcessoScreen(),
     );
   }
 }

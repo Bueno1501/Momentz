@@ -6,6 +6,8 @@ import 'dart:typed_data';
 class ApiService {
   static const String baseUrl = 'http://localhost:3000';
 
+  static String? token;
+
   static Future cadastrarEvento({
     required String tipoEvento,
     required int quantidadeConvidados,
@@ -89,6 +91,7 @@ class ApiService {
   static Future<List<dynamic>> buscarConvidados(int eventoId) async {
     final response = await http.get(
       Uri.parse('$baseUrl/convidados/evento/$eventoId'),
+      headers: {'Authorization': 'Bearer $token'},
     );
 
     if (response.statusCode == 200) {

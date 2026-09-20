@@ -97,6 +97,8 @@ class _LoginScreenState extends State<LoginScreen> {
                     senha: senhaController.text,
                   );
 
+                  ApiService.token = resposta['token'];
+
                   print(resposta);
 
                   if (!mounted) return;
