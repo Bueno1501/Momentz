@@ -4,6 +4,7 @@ const router = express.Router();
 
 const {
     cadastrarUsuario,
+    cadastrarConvidadoComConta,
     login
 } = require('../controllers/usuariosController');
 
@@ -12,6 +13,7 @@ router.get('/', (req, res) => {
 });
 
 router.post('/', cadastrarUsuario);
+router.post('/convidado', cadastrarConvidadoComConta);
 router.post('/login', login);
 
 module.exports = router;

@@ -24,8 +24,6 @@ class _CadastroUsuarioScreenState extends State<CadastroUsuarioScreen> {
   bool mostrarSenha = false;
   bool mostrarConfirmarSenha = false;
 
-  String tipoUsuario = 'Convidado';
-
   void validarSenha(String senha) {
     setState(() {
       temNumero = RegExp(r'[0-9]').hasMatch(senha);
@@ -143,7 +141,7 @@ class _CadastroUsuarioScreenState extends State<CadastroUsuarioScreen> {
       nome: nomeController.text,
       email: emailController.text,
       senha: senhaController.text,
-      tipoUsuario: tipoUsuario,
+      tipoUsuario: 'Administrador',
     );
     print(resposta);
 
@@ -171,7 +169,7 @@ class _CadastroUsuarioScreenState extends State<CadastroUsuarioScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Cadastro de Usuário'),
+        title: const Text('Cadastro de Administrador'),
 
         leading: IconButton(
           icon: const Icon(Icons.arrow_back),
@@ -285,32 +283,6 @@ class _CadastroUsuarioScreenState extends State<CadastroUsuarioScreen> {
 
               const SizedBox(height: 20),
 
-              DropdownButtonFormField<String>(
-                value: tipoUsuario,
-
-                items: const [
-                  DropdownMenuItem(
-                    value: 'Administrador',
-                    child: Text('Administrador'),
-                  ),
-
-                  DropdownMenuItem(
-                    value: 'Convidado',
-                    child: Text('Convidado'),
-                  ),
-                ],
-
-                onChanged: (value) {
-                  setState(() {
-                    tipoUsuario = value!;
-                  });
-                },
-
-                decoration: const InputDecoration(labelText: 'Tipo de Usuário'),
-              ),
-
-              const SizedBox(height: 20),
-
               Row(
                 children: [
                   Expanded(
@@ -327,7 +299,7 @@ class _CadastroUsuarioScreenState extends State<CadastroUsuarioScreen> {
                     child: ElevatedButton(
                       onPressed: cadastrarUsuario,
 
-                      child: const Text('Cadastrar'),
+                      child: const Text('Criar conta'),
                     ),
                   ),
                 ],
