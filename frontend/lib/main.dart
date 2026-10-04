@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:frontend/screens/tipo_acesso_screen.dart';
+import 'screens/convite_screen.dart';
 
 void main() {
   runApp(const MyApp());
