@@ -9,10 +9,13 @@ const {
     listarConvidadosPorEvento,
     alterarStatusConvidados,
     excluirConvidado,
-    buscarConvitePorToken
+    buscarConvitePorToken,
+    responderConvite
 } = require('../controllers/convidadosController');
 
 router.get('/convite/:token', buscarConvitePorToken);
+
+router.put('/convite/:token/status', responderConvite);
 
 router.post('/', authMiddleware, cadastrarConvidado);
 

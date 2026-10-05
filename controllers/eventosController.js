@@ -1,4 +1,5 @@
 const conexao = require('../config/db');
+const crypto = require('crypto');
 
 const cadastrarEvento = (req, res) => {
 
@@ -15,6 +16,7 @@ const cadastrarEvento = (req, res) => {
     } = req.body;
 
     const codigo_evento = `EVE${Math.floor(1000 + Math.random() * 9000)}`;
+    const tokenConvite = crypto.randomBytes(32).toString('hex');
 
     const sql = `INSERT INTO evento (
             codigo_evento,
@@ -25,9 +27,10 @@ const cadastrarEvento = (req, res) => {
             local_evento,
             cidade_evento,
             estado_evento,
-            usuario_id
+            usuario_id,
+            token_convite
         ) 
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `;
 
     conexao.query(
@@ -41,7 +44,8 @@ const cadastrarEvento = (req, res) => {
             local_evento,
             cidade_evento,
             estado_evento,
-            usuario_id
+            usuario_id,
+            tokenConvite
 
         ],
         (erro, resultado) => {
@@ -56,7 +60,8 @@ const cadastrarEvento = (req, res) => {
         return res.status(201).json({
             mensagem: 'Evento criado na boa!',
             codigo_evento: codigo_evento,
-            evento_id: resultado.insertId
+            evento_id: resultado.insertId,
+            token_convite: tokenConvite
 
             });
         }
@@ -163,10 +168,61 @@ const acessarEvento = (req, res) => {
     );
 };
 
+const buscarEventoPorToken = (req, res) => {
+    const { token } = req.params;
+
+    if (!token) {
+        return res.status(400).json({
+            erro: 'Token do convite não informado'
+        });
+    }
+
+    const sql = `
+        SELECT
+            evento_id,
+            codigo_evento,
+            tipo_evento,
+            quantidade_convidados,
+            descricao,
+            data_evento,
+            local_evento,
+            cidade_evento,
+            estado_evento
+        FROM evento
+        WHERE token_convite = ?
+    `;
+
+    conexao.query(
+        sql,[token],
+        (erro, resultado) => {
+
+            if (erro) {
+                console.log(erro)
+
+                return res.status(500).json({
+                    erro: 'Erro ao buscar evento pelo convite'
+                });
+            }
+
+            if (resultado.length === 0) {
+                return res.status(400).json({
+                    erro: 'Convite inválido ou evento não encontrado! '
+                });
+            }
+
+            return res.status(200).json({
+                mensagem: 'Evento encontrado',
+                evento: resultado[0]
+            });
+        }
+    );
+};
+
 
 module.exports = {
     cadastrarEvento,
     listarEvento,
     buscarEventoUsuario,
-    acessarEvento
+    acessarEvento,
+    buscarEventoPorToken
 };

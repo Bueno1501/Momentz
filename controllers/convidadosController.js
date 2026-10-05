@@ -174,11 +174,65 @@ const buscarConvitePorToken = (req, res) => {
             }
         );
     };
+    
+    const responderConvite = (req, res) => {
 
+        const { token } = req.params;
+        const { status_confirmacao } = req.body;
+
+    
+
+    if (!status_confirmacao) {
+        return res.status(400).json({
+            erro: 'Status de confirmação não informado'
+        });
+    }
+
+    if (
+        status_confirmacao !== 'CONFIRMADO' && status_confirmacao !== 'RECUSADO'
+    ) {
+        return res.status(400).json({
+            erro: 'Status inválido'
+        });
+    }
+
+    const sql = `
+
+        UPDATE convidado
+        SET status_confirmacao = ?
+        WHERE token_convite = ?
+    `;
+
+    conexao.query(
+        sql, [status_confirmacao, token],
+        (erro,resultado) => {
+
+            if (erro) {
+                console.log(erro);
+
+                return res.status(500).json({
+                    erro: 'Erro ao atualizar confirmação'
+                });
+            }
+
+            if (resultado.affectedRows === 0) {
+                return res.status(404).json({
+                    erro: 'Convite não encontrado'
+                });
+            }
+
+            return res.status(200).json({
+                mensagem: 'Resposta do convite registrada',
+                status_confirmacao: status_confirmacao
+            });
+        }
+    );
+};
 
 module.exports = {
     cadastrarConvidado,
     buscarConvitePorToken,
+    responderConvite,
     listarConvidadosPorEvento,
     alterarStatusConvidados,
     excluirConvidado
