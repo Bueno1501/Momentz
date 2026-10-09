@@ -39,7 +39,7 @@ dependencies:
   http: ^1.6.0
   mask_text_input_formatter: ^2.9.0
   image_picker: ^1.2.2
-  file_picker: ^11.0.2
+  file_picker: ^13.1.0
   url_launcher: ^6.3.2
   currency_text_input_formatter: ^2.3.0
 

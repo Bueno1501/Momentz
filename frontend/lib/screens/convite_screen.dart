@@ -21,20 +21,20 @@ class _ConviteScreenState extends State<ConviteScreen> {
   @override
   void initState() {
     super.initState();
-    buscarConvite();
+    buscarEvento();
   }
 
-  Future<void> buscarConvite() async {
+  Future<void> buscarEvento() async {
     try {
       final resposta = await http.get(
-        Uri.parse('${ApiService.baseUrl}/convidados/convite/${widget.token}'),
+        Uri.parse('${ApiService.baseUrl}/eventos/convite/${widget.token}'),
       );
 
       final dados = jsonDecode(resposta.body);
 
       if (resposta.statusCode == 200) {
         setState(() {
-          convite = dados['convite'];
+          convite = dados['evento'];
           carregando = false;
         });
       } else {
@@ -93,9 +93,8 @@ class _ConviteScreenState extends State<ConviteScreen> {
             ),
 
             const SizedBox(height: 15),
-
             Text(
-              'Olá, ${convite!['nome']}!',
+              'Este é o convite do nosso ${convite!['tipo_evento'] ?? 'evento'}',
               textAlign: TextAlign.center,
               style: const TextStyle(fontSize: 20),
             ),

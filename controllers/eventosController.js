@@ -218,11 +218,57 @@ const buscarEventoPorToken = (req, res) => {
     );
 };
 
+const importarConvite = (req, res) => {
+
+    const { eventoId } = req.params;
+
+    if (!req.file) {
+        return res.status(400).json({
+            erro: 'Nenhum convite foi enviado'
+        });
+    }
+
+    const urlConvite = `/uploads/convites/${req.file.filename}`;
+
+    const sql = `
+        UPDATE evento
+        SET convite_url = ?
+        WHERE evento_id = ?
+    `;
+
+    conexao.query(
+        sql,
+        [urlConvite, eventoId],
+        (erro, resultado) => {
+
+            if (erro) {
+                console.log(erro);
+
+                return res.status(500).json({
+                    erro: 'Erro ao salvar convite'
+                });
+            }
+
+            if (resultado.affectedRows === 0) {
+                return res.status(404).json({
+                    erro: 'Evento não encontrado'
+                });
+            }
+
+            return res.status(200).json({
+                mensagem: 'Convite importado com sucesso',
+                convite_url: urlConvite
+            });
+        }
+    );
+};
+
 
 module.exports = {
     cadastrarEvento,
     listarEvento,
     buscarEventoUsuario,
     acessarEvento,
-    buscarEventoPorToken
+    buscarEventoPorToken,
+    importarConvite
 };

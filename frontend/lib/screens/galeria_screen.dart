@@ -3,8 +3,6 @@ import '../services/api_service.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:url_launcher/url_launcher.dart';
 
-FilePickerResult? teste;
-
 class GaleriaScreen extends StatefulWidget {
   final int eventoId;
 
@@ -17,18 +15,17 @@ class GaleriaScreen extends StatefulWidget {
 class _GaleriaScreenState extends State<GaleriaScreen> {
   List fotos = [];
 
-  Future selecionarFoto() async {
-    FilePickerResult? resultado = await FilePicker.pickFiles(
-      type: FileType.image,
-      withData: true,
-    );
+  Future<void> selecionarFoto() async {
+    final arquivos = await FilePicker.pickFiles(type: FileType.image);
 
-    if (resultado == null) return;
+    if (arquivos.isEmpty) return;
 
-    final arquivo = resultado.files.first;
+    final arquivo = arquivos.first;
+
+    final bytes = await arquivo.readAsBytes();
 
     final sucesso = await ApiService.uploadFoto(
-      bytes: arquivo.bytes!,
+      bytes: bytes,
       nomeArquivo: arquivo.name,
       eventoId: widget.eventoId,
     );
