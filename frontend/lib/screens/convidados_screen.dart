@@ -51,7 +51,6 @@ class _ConvidadosScreenState extends State<ConvidadosScreen> {
     }
 
     final arquivo = arquivos.first;
-
     final bytes = await arquivo.readAsBytes();
 
     if (!mounted) return;
@@ -60,6 +59,34 @@ class _ConvidadosScreenState extends State<ConvidadosScreen> {
       conviteSelecionado = arquivo;
       conviteBytes = bytes;
     });
+
+    try {
+      final resposta = await ApiService.uploadConvite(
+        bytes: bytes,
+        nomeArquivo: arquivo.name,
+        eventoId: widget.eventoId,
+      );
+
+      if (!mounted) return;
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            resposta.containsKey('convite_url')
+                ? 'Convite salvo no evento com sucesso!'
+                : resposta['erro'] ?? 'Erro ao salvar o convite',
+          ),
+        ),
+      );
+    } catch (e) {
+      if (!mounted) return;
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Não foi possível enviar o convite ao servidor.'),
+        ),
+      );
+    }
   }
 
   @override

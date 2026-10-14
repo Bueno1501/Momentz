@@ -242,6 +242,31 @@ class ApiService {
     return response.statusCode == 201;
   }
 
+  static Future<Map<String, dynamic>> uploadConvite({
+    required Uint8List bytes,
+    required String nomeArquivo,
+    required int eventoId,
+  }) async {
+    final request = http.MultipartRequest(
+      'PUT',
+      Uri.parse('$baseUrl/eventos/$eventoId/convite'),
+    );
+
+    request.files.add(
+      http.MultipartFile.fromBytes('convite', bytes, filename: nomeArquivo),
+    );
+
+    final response = await request.send();
+    final resposta = await response.stream.bytesToString();
+    final dados = jsonDecode(resposta);
+
+    if (response.statusCode == 200) {
+      return Map<String, dynamic>.from(dados);
+    }
+
+    return {'erro': dados['erro'] ?? 'Erro ao enviar o convite'};
+  }
+
   static Future<Map<String, dynamic>> buscarOrcamento(int eventoId) async {
     final response = await http.get(Uri.parse('$baseUrl/orcamento/$eventoId'));
 
