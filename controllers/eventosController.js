@@ -187,7 +187,8 @@ const buscarEventoPorToken = (req, res) => {
             data_evento,
             local_evento,
             cidade_evento,
-            estado_evento
+            estado_evento,
+            convite_url
         FROM evento
         WHERE token_convite = ?
     `;
@@ -263,6 +264,31 @@ const importarConvite = (req, res) => {
     );
 };
 
+const buscarEventoPorId = (req, res) => {
+    const { eventoId } = req.params;
+
+    const sql =`
+        SELECT evento_id, tipo_evento, token_convite FROM evento WHERE evento_id =?
+    `;
+
+    conexao.query(sql, [eventoId], (erro, resultado) => {
+        if (erro) {
+            console.log(erro);
+            return res.status(500).json({
+                erro: 'Erro ao buscar evento'
+            });
+        }
+
+        if (resultado.length === 0) {
+            return res.status(404).json({
+                erro: 'Evento não encontrato'
+            });
+        }
+
+        return res.status(200).json(resultado[0]);
+    });
+};
+
 
 module.exports = {
     cadastrarEvento,
@@ -270,5 +296,6 @@ module.exports = {
     buscarEventoUsuario,
     acessarEvento,
     buscarEventoPorToken,
-    importarConvite
+    importarConvite,
+    buscarEventoPorId
 };

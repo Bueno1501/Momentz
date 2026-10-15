@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:frontend/services/api_service.dart';
 import 'package:frontend/widgets/page_container.dart';
+import 'package:flutter/services.dart';
 
 class ConvidadosScreen extends StatefulWidget {
   final int eventoId;
@@ -84,6 +85,64 @@ class _ConvidadosScreenState extends State<ConvidadosScreen> {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content: Text('Não foi possível enviar o convite ao servidor.'),
+        ),
+      );
+    }
+  }
+
+  Future<void> gerarLinkEvento() async {
+    try {
+      final evento = await ApiService.buscarEventoPorId(widget.eventoId);
+
+      debugPrint('Evento recebido pelo Flutter: $evento');
+      debugPrint('ID do evento aberto: ${widget.eventoId}');
+
+      final token = evento['token_convite'];
+
+      debugPrint('Token recebido pelo Flutter: $token');
+
+      if (token == null || token.toString().isEmpty) {
+        throw Exception('Token do convite não encontrado');
+      }
+
+      final link = Uri.base.resolve('/convite/$token').toString();
+
+      if (!mounted) return;
+
+      await showDialog<void>(
+        context: context,
+        builder: (context) => AlertDialog(
+          title: const Text('Link do evento'),
+          content: SelectableText(link),
+          actions: [
+            TextButton(
+              onPressed: () async {
+                await Clipboard.setData(ClipboardData(text: link));
+
+                if (!context.mounted) return;
+
+                Navigator.pop(context);
+
+                ScaffoldMessenger.of(
+                  this.context,
+                ).showSnackBar(const SnackBar(content: Text('Link copiado!')));
+              },
+              child: const Text('Copiar link'),
+            ),
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text('Fechar'),
+            ),
+          ],
+        ),
+      );
+    } catch (e) {
+      if (!mounted) return;
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Erro ao gerar link: $e'),
+          duration: const Duration(seconds: 6),
         ),
       );
     }
@@ -225,9 +284,29 @@ class _ConvidadosScreenState extends State<ConvidadosScreen> {
 
             const SizedBox(height: 20),
 
-            ElevatedButton(
-              onPressed: adicionarConvidado,
-              child: const Text('Adicionar Convidado'),
+            Row(
+              children: [
+                Expanded(
+                  child: ElevatedButton(
+                    onPressed: adicionarConvidado,
+                    child: const Text(
+                      'Adicionar Convidado',
+                      textAlign: TextAlign.center,
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: ElevatedButton.icon(
+                    onPressed: gerarLinkEvento,
+                    icon: const Icon(Icons.link),
+                    label: const Text(
+                      'Gerar link',
+                      textAlign: TextAlign.center,
+                    ),
+                  ),
+                ),
+              ],
             ),
 
             const SizedBox(height: 20),

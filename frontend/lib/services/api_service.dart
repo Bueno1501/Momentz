@@ -112,6 +112,16 @@ class ApiService {
     return {};
   }
 
+  static Future<Map<String, dynamic>> buscarEventoPorId(int eventoId) async {
+    final response = await http.get(Uri.parse('$baseUrl/eventos/$eventoId'));
+
+    if (response.statusCode == 200) {
+      return Map<String, dynamic>.from(jsonDecode(response.body));
+    }
+
+    throw Exception('Não foi possível buscar o evento');
+  }
+
   static Future alterarStatusConvidado({
     required int convidadoId,
     required String status,

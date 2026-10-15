@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:frontend/screens/convite_screen.dart';
 import 'package:frontend/screens/tipo_acesso_screen.dart';
 //import 'screens/convite_screen.dart'; //
 
@@ -14,53 +15,55 @@ class MyApp extends StatelessWidget {
     return MaterialApp(
       debugShowCheckedModeBanner: false,
 
+      initialRoute: Uri.base.path,
+
+      onGenerateRoute: (settings) {
+        final uri = Uri.parse(settings.name ?? '/');
+
+        if (uri.pathSegments.length == 2 && uri.pathSegments[0] == 'convite') {
+          final token = uri.pathSegments[1];
+
+          return MaterialPageRoute(builder: (_) => ConviteScreen(token: token));
+        }
+
+        return MaterialPageRoute(builder: (_) => const TipoAcessoScreen());
+      },
+
       theme: ThemeData(
         useMaterial3: true,
         brightness: Brightness.dark,
-
         appBarTheme: const AppBarTheme(
           centerTitle: true,
           elevation: 0,
           backgroundColor: Colors.transparent,
         ),
-
         scaffoldBackgroundColor: const Color(0xFF1A0933),
-
         primaryColor: const Color(0xFF8E24AA),
-
         elevatedButtonTheme: ElevatedButtonThemeData(
           style: ElevatedButton.styleFrom(
             backgroundColor: const Color(0xFF9C27B0),
             foregroundColor: Colors.white,
-
             minimumSize: const Size(250, 55),
             elevation: 8,
-
             shape: RoundedRectangleBorder(
               borderRadius: BorderRadius.circular(18),
             ),
           ),
         ),
-
         cardTheme: CardThemeData(
           elevation: 8,
-
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(20),
           ),
         ),
         inputDecorationTheme: InputDecorationTheme(
           filled: true,
-
           fillColor: Colors.white10,
-
           border: OutlineInputBorder(borderRadius: BorderRadius.circular(15)),
         ),
       ),
 
       title: 'Momentz',
-
-      home: const TipoAcessoScreen(),
     );
   }
 }

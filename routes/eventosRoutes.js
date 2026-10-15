@@ -27,7 +27,8 @@ const{
     buscarEventoUsuario,
     acessarEvento,
     buscarEventoPorToken,
-    importarConvite
+    importarConvite,
+    buscarEventoPorId
 } =  require('../controllers/eventosController');
 
 router.post('/', cadastrarEvento);
@@ -36,4 +37,5 @@ router.get('/usuario/:usuarioId' , buscarEventoUsuario);
 router.post('/acessar', acessarEvento);
 router.get('/convite/:token', buscarEventoPorToken);
 router.put('/:eventoId/convite', upload.single('convite'), importarConvite);
+router.get('/:eventoId', buscarEventoPorId);
 module.exports = router;
