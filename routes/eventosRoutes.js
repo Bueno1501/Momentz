@@ -31,6 +31,10 @@ const{
     buscarEventoPorId
 } =  require('../controllers/eventosController');
 
+const {
+    cadastrarConvidadoPublico
+} = require('../controllers/convidadosController');
+
 router.post('/', cadastrarEvento);
 router.get('/', listarEvento);
 router.get('/usuario/:usuarioId' , buscarEventoUsuario);
@@ -38,4 +42,5 @@ router.post('/acessar', acessarEvento);
 router.get('/convite/:token', buscarEventoPorToken);
 router.put('/:eventoId/convite', upload.single('convite'), importarConvite);
 router.get('/:eventoId', buscarEventoPorId);
+router.post('/publico/:token', cadastrarConvidadoPublico);
 module.exports = router;

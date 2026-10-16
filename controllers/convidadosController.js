@@ -229,8 +229,130 @@ const buscarConvitePorToken = (req, res) => {
     );
 };
 
+const cadastrarConvidadoPublico = (req, res) => {
+    const { token } = req.params;
+
+    const {
+        nome,
+        email,
+        telefone,
+        criancas_0_3 = 0,
+        criancas_4_7 = 0,
+        acompanhantes_8_mais = 0,
+        status_confirmacao
+    } = req.body;
+
+    if (!nome || !email || !telefone) {
+        return res.status(400).json({
+            erro: 'Informe nome, email e telefone.'
+        });
+    }
+
+    if ( 
+        !['CONFIRMADO', 'RECUSADO'].includes(status_confirmacao)
+    ) {
+        return res.status(400).json({
+            erro: 'Resposta do convite inválida.'
+        });
+    }
+
+    const faixas = [
+        criancas_0_3,
+        criancas_4_7,
+        acompanhantes_8_mais
+    ];
+
+    const quantidadeValidas = faixas.every(
+        quantidade =>
+            Number.isInteger(Number(quantidade)) && Number(quantidade) >= 0
+    );
+
+    if (!quantidadeValidas) {
+        return res.status(400).json({
+            erro: 'As quantidades devem ser númerps inteiros não negativos.'
+        });
+    }
+
+    const totalAcompanhantes = faixas.reduce(
+        (total, quantidade) => total + Number(quantidade), 0
+        
+    );
+
+    const sqlEvento = `
+        SELECT evento_id, usuario_id
+        FROM evento
+        WHERE token_convite = ?
+    `;
+
+    
+conexao.query(sqlEvento, [token], (erro, eventos) => {
+    if (erro) {
+        console.log(erro);
+        return res.status(500).json({
+            erro: 'Erro ao localizar o evento.'
+        });
+    }
+
+    if (eventos.length === 0) {
+        return res.status(404).json({
+            erro: 'Convite inválido ou evento não encontrado.'
+        });
+    }
+
+    const evento = eventos[0];
+
+        const sqlConvidado = `
+            INSERT INTO convidado (
+                nome,
+                email,
+                telefone,
+                evento_id,
+                usuario_id,
+                status_confirmacao,
+                quantidade_acompanhantes,
+                criancas_0_3,
+                criancas_4_7,
+                acompanhantes_8_mais
+            )
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        `;
+
+        conexao.query(
+            sqlConvidado,
+            [
+                nome.trim(),
+                email.trim(),
+                telefone.trim(),
+                evento.evento_id,
+                evento.usuario_id,
+                status_confirmacao,
+                totalAcompanhantes,
+                Number(criancas_0_3),
+                Number(criancas_4_7),
+                Number(acompanhantes_8_mais)
+            ],
+            (erroInsert, resultado) => {
+                if (erroInsert) {
+                    console.log(erroInsert);
+                    return res.status(500).json({
+                        erro: 'Erro ao registrar sua resposta.'
+                    });
+                }
+
+                return res.status(201).json({
+                    mensagem: 'Resposta registrada com sucesso!',
+                    convidado_id: resultado.insertId,
+                    status_confirmacao,
+                    quantidade_acompanhantes: totalAcompanhantes
+                });
+            }
+        );
+    });
+};
+
 module.exports = {
     cadastrarConvidado,
+    cadastrarConvidadoPublico,
     buscarConvitePorToken,
     responderConvite,
     listarConvidadosPorEvento,
