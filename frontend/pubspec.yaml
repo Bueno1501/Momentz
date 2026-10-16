@@ -67,6 +67,7 @@ flutter:
 
   assets:
     - assets/images/fundo_convite.jpeg
+    - assets/images/fundo_convidados.png
   # To add assets to your application, add an assets section, like this:
   # assets:
   #   - images/a_dot_burr.jpeg

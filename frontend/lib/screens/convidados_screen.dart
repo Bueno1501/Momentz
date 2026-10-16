@@ -1,5 +1,3 @@
-import 'dart:typed_data';
-
 import 'package:flutter/material.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:frontend/services/api_service.dart';
@@ -198,188 +196,409 @@ class _ConvidadosScreenState extends State<ConvidadosScreen> {
     await carregarConvidados();
   }
 
+  void visualizarDetalhes(dynamic convidado) {
+    String valor(String campo) {
+      final dado = convidado[campo];
+      if (dado == null || dado.toString().trim().isEmpty) {
+        return 'Não informado';
+      }
+      return dado.toString();
+    }
+
+    showDialog<void>(
+      context: context,
+      builder: (dialogContext) {
+        return AlertDialog(
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(20),
+          ),
+          title: Row(
+            children: [
+              const Icon(Icons.person, color: Colors.deepPurple),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Text(
+                  valor('nome'),
+                  style: const TextStyle(fontWeight: FontWeight.bold),
+                ),
+              ),
+            ],
+          ),
+          content: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                _detalheConvidado(Icons.email, 'E-mail', valor('email')),
+                _detalheConvidado(Icons.phone, 'Telefone', valor('telefone')),
+                _detalheConvidado(
+                  Icons.event_available,
+                  'Confirmação',
+                  valor('status_confirmacao'),
+                ),
+                const Divider(height: 28),
+                const Text(
+                  'Acompanhantes e crianças',
+                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                ),
+                const SizedBox(height: 12),
+                _detalheConvidado(
+                  Icons.child_care,
+                  'Crianças de 0 a 3 anos',
+                  valor('criancas_0_3'),
+                ),
+                _detalheConvidado(
+                  Icons.child_friendly,
+                  'Crianças de 4 a 7 anos',
+                  valor('criancas_4_7'),
+                ),
+                _detalheConvidado(
+                  Icons.people,
+                  'Acompanhantes de 8 anos ou mais',
+                  valor('acompanhantes_8_mais'),
+                ),
+              ],
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(dialogContext),
+              child: const Text('Fechar'),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  Widget _detalheConvidado(IconData icone, String titulo, String valor) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 12),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Icon(icone, color: Colors.deepPurple, size: 21),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  titulo,
+                  style: const TextStyle(fontSize: 13, color: Colors.grey),
+                ),
+                const SizedBox(height: 3),
+                Text(valor, style: const TextStyle(fontSize: 15)),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  int calcularTotalPessoas(dynamic convidado) {
+    int quantidade(String campo) {
+      return int.tryParse((convidado[campo] ?? 0).toString()) ?? 0;
+    }
+
+    return 1 +
+        quantidade('criancas_0_3') +
+        quantidade('criancas_4_7') +
+        quantidade('acompanhantes_8_mais');
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Convidados'),
+        title: const Text(
+          'Convidados',
+          style: TextStyle(fontWeight: FontWeight.bold, color: Colors.white),
+        ),
+        backgroundColor: const Color(0xFF4A176B),
+        foregroundColor: Colors.white,
+        elevation: 0,
         actions: [
           IconButton(
-            icon: const Icon(Icons.add),
+            icon: const Icon(Icons.add_photo_alternate_outlined),
             tooltip: 'Importar convite',
             onPressed: importarConvite,
           ),
         ],
       ),
+      body: Stack(
+        children: [
+          Positioned.fill(
+            child: Image.asset(
+              'assets/images/fundo_convidados.png',
+              fit: BoxFit.cover,
+            ),
+          ),
+          Positioned.fill(
+            child: Container(
+              color: const Color(0xFF321044).withValues(alpha: 0.55),
+            ),
+          ),
 
-      body: PageContainer(
-        child: Column(
-          children: [
-            if (conviteSelecionado != null) ...[
-              Card(
-                elevation: 4,
-                child: Padding(
-                  padding: const EdgeInsets.all(16),
-                  child: Column(
-                    children: [
-                      const Text(
-                        'Convite do evento',
-                        style: TextStyle(
-                          fontSize: 20,
-                          fontWeight: FontWeight.bold,
+          PageContainer(
+            child: SingleChildScrollView(
+              padding: const EdgeInsets.only(bottom: 30),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  if (conviteSelecionado != null) ...[
+                    Card(
+                      elevation: 4,
+                      child: Padding(
+                        padding: const EdgeInsets.all(16),
+                        child: Column(
+                          children: [
+                            const Text(
+                              'Convite do evento',
+                              style: TextStyle(
+                                fontSize: 20,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+
+                            const SizedBox(height: 12),
+
+                            const SizedBox(height: 15),
+
+                            if (['jpg', 'jpeg', 'png'].contains(
+                              conviteSelecionado!.extension?.toLowerCase(),
+                            ))
+                              Image.memory(
+                                conviteBytes!,
+                                height: 300,
+                                fit: BoxFit.contain,
+                              )
+                            else
+                              Container(
+                                height: 200,
+                                width: double.infinity,
+                                alignment: Alignment.center,
+                                child: const Column(
+                                  mainAxisAlignment: MainAxisAlignment.center,
+                                  children: [
+                                    Icon(Icons.picture_as_pdf, size: 70),
+                                    SizedBox(height: 10),
+                                    Text(
+                                      'Arquivo PDF selecionado',
+                                      style: TextStyle(fontSize: 16),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                          ],
                         ),
                       ),
+                    ),
 
-                      const SizedBox(height: 12),
+                    const SizedBox(height: 20),
+                  ],
+                  TextField(
+                    controller: nomeController,
+                    decoration: const InputDecoration(
+                      labelText: 'Nome do Convidado',
+                    ),
+                  ),
 
-                      const SizedBox(height: 15),
+                  const SizedBox(height: 10),
 
-                      if ([
-                        'jpg',
-                        'jpeg',
-                        'png',
-                      ].contains(conviteSelecionado!.extension?.toLowerCase()))
-                        Image.memory(
-                          conviteBytes!,
-                          height: 300,
-                          fit: BoxFit.contain,
-                        )
-                      else
-                        Container(
-                          height: 200,
-                          width: double.infinity,
-                          alignment: Alignment.center,
-                          child: const Column(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            children: [
-                              Icon(Icons.picture_as_pdf, size: 70),
-                              SizedBox(height: 10),
-                              Text(
-                                'Arquivo PDF selecionado',
-                                style: TextStyle(fontSize: 16),
-                              ),
-                            ],
+                  TextField(
+                    controller: emailController,
+                    decoration: const InputDecoration(
+                      labelText: 'Email do Convidado',
+                    ),
+                  ),
+
+                  const SizedBox(height: 20),
+
+                  Row(
+                    children: [
+                      Expanded(
+                        child: ElevatedButton(
+                          onPressed: adicionarConvidado,
+                          child: const Text(
+                            'Adicionar Convidado',
+                            textAlign: TextAlign.center,
                           ),
                         ),
+                      ),
+                      const SizedBox(width: 10),
+                      Expanded(
+                        child: ElevatedButton.icon(
+                          onPressed: gerarLinkEvento,
+                          icon: const Icon(Icons.link),
+                          label: const Text(
+                            'Gerar link',
+                            textAlign: TextAlign.center,
+                          ),
+                        ),
+                      ),
                     ],
                   ),
-                ),
-              ),
 
-              const SizedBox(height: 20),
-            ],
-            TextField(
-              controller: nomeController,
-              decoration: const InputDecoration(labelText: 'Nome do Convidado'),
-            ),
+                  const SizedBox(height: 20),
 
-            const SizedBox(height: 10),
+                  ListView.builder(
+                    shrinkWrap: true,
+                    physics: const NeverScrollableScrollPhysics(),
+                    itemCount: convidados.length,
 
-            TextField(
-              controller: emailController,
-              decoration: const InputDecoration(
-                labelText: 'Email do Convidado',
-              ),
-            ),
+                    itemBuilder: (context, index) {
+                      final convidado = convidados[index];
 
-            const SizedBox(height: 20),
+                      final totalPessoas = calcularTotalPessoas(convidado);
 
-            Row(
-              children: [
-                Expanded(
-                  child: ElevatedButton(
-                    onPressed: adicionarConvidado,
-                    child: const Text(
-                      'Adicionar Convidado',
-                      textAlign: TextAlign.center,
-                    ),
-                  ),
-                ),
-                const SizedBox(width: 10),
-                Expanded(
-                  child: ElevatedButton.icon(
-                    onPressed: gerarLinkEvento,
-                    icon: const Icon(Icons.link),
-                    label: const Text(
-                      'Gerar link',
-                      textAlign: TextAlign.center,
-                    ),
-                  ),
-                ),
-              ],
-            ),
+                      final status =
+                          (convidado['status_confirmacao'] ?? 'PENDENTE')
+                              .toString()
+                              .toUpperCase();
 
-            const SizedBox(height: 20),
+                      final corStatus = status == 'CONFIRMADO'
+                          ? Colors.green
+                          : status == 'RECUSADO'
+                          ? Colors.red
+                          : Colors.orange;
 
-            Expanded(
-              child: ListView.builder(
-                itemCount: convidados.length,
-
-                itemBuilder: (context, index) {
-                  final convidado = convidados[index];
-
-                  return Card(
-                    elevation: 4,
-                    margin: const EdgeInsets.symmetric(vertical: 6),
-
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(15),
-                    ),
-
-                    child: Padding(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 16,
-                        vertical: 4,
-                      ),
-
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-
-                        children: [
-                          Text(
-                            convidado['nome'],
-                            style: const TextStyle(
-                              fontSize: 18,
-                              fontWeight: FontWeight.bold,
+                      return Card(
+                        elevation: 5,
+                        color: Colors.white,
+                        shadowColor: Colors.black26,
+                        margin: const EdgeInsets.symmetric(vertical: 7),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(18),
+                        ),
+                        clipBehavior: Clip.antiAlias,
+                        child: InkWell(
+                          onTap: () => visualizarDetalhes(convidado),
+                          child: Padding(
+                            padding: const EdgeInsets.all(14),
+                            child: Row(
+                              children: [
+                                Container(
+                                  width: 50,
+                                  height: 50,
+                                  decoration: BoxDecoration(
+                                    color: const Color(0xFFEDE2F7),
+                                    borderRadius: BorderRadius.circular(15),
+                                  ),
+                                  child: const Icon(
+                                    Icons.person_outline,
+                                    color: Color(0xFF6A1B9A),
+                                    size: 29,
+                                  ),
+                                ),
+                                const SizedBox(width: 12),
+                                Expanded(
+                                  child: Column(
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
+                                    children: [
+                                      Text(
+                                        convidado['nome']?.toString() ??
+                                            'Sem nome',
+                                        maxLines: 1,
+                                        overflow: TextOverflow.ellipsis,
+                                        style: const TextStyle(
+                                          fontSize: 16,
+                                          fontWeight: FontWeight.bold,
+                                          color: Color(0xFF30213B),
+                                        ),
+                                      ),
+                                      const SizedBox(height: 4),
+                                      Text(
+                                        convidado['email']?.toString() ??
+                                            'Sem e-mail',
+                                        maxLines: 1,
+                                        overflow: TextOverflow.ellipsis,
+                                        style: TextStyle(
+                                          fontSize: 13,
+                                          color: Colors.grey.shade700,
+                                        ),
+                                      ),
+                                      const SizedBox(height: 9),
+                                      Wrap(
+                                        spacing: 7,
+                                        runSpacing: 6,
+                                        children: [
+                                          Container(
+                                            padding: const EdgeInsets.symmetric(
+                                              horizontal: 9,
+                                              vertical: 5,
+                                            ),
+                                            decoration: BoxDecoration(
+                                              color: const Color(0xFFEDE2F7),
+                                              borderRadius:
+                                                  BorderRadius.circular(20),
+                                            ),
+                                            child: Text(
+                                              '$totalPessoas ${totalPessoas == 1 ? 'pessoa' : 'pessoas'}',
+                                              style: const TextStyle(
+                                                fontSize: 12,
+                                                color: Color(0xFF6A1B9A),
+                                                fontWeight: FontWeight.bold,
+                                              ),
+                                            ),
+                                          ),
+                                          Container(
+                                            padding: const EdgeInsets.symmetric(
+                                              horizontal: 9,
+                                              vertical: 5,
+                                            ),
+                                            decoration: BoxDecoration(
+                                              color: corStatus.withValues(
+                                                alpha: 0.12,
+                                              ),
+                                              borderRadius:
+                                                  BorderRadius.circular(20),
+                                            ),
+                                            child: Text(
+                                              status,
+                                              style: TextStyle(
+                                                fontSize: 11,
+                                                color: corStatus,
+                                                fontWeight: FontWeight.bold,
+                                              ),
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                                IconButton(
+                                  tooltip: 'Excluir convidado',
+                                  icon: const Icon(
+                                    Icons.delete_outline,
+                                    color: Colors.redAccent,
+                                  ),
+                                  onPressed: () => removerConvidado(
+                                    convidado['convidado_id'],
+                                  ),
+                                ),
+                                const Icon(
+                                  Icons.chevron_right,
+                                  color: Color(0xFF6A1B9A),
+                                ),
+                              ],
                             ),
                           ),
+                        ),
+                      );
+                    },
+                  ),
 
-                          const SizedBox(height: 6),
-
-                          Row(
-                            children: [
-                              Expanded(
-                                child: Text(
-                                  convidado['email'],
-                                  style: const TextStyle(fontSize: 15),
-                                ),
-                              ),
-
-                              IconButton(
-                                tooltip: 'Excluir',
-
-                                icon: const Icon(
-                                  Icons.delete,
-                                  color: Colors.red,
-                                ),
-
-                                onPressed: () {
-                                  removerConvidado(convidado['convidado_id']);
-                                },
-                              ),
-                            ],
-                          ),
-                        ],
-                      ),
-                    ),
-                  );
-                },
+                  const SizedBox(height: 20),
+                ],
               ),
             ),
-
-            const SizedBox(height: 20),
-          ],
-        ),
+          ),
+        ],
       ),
     );
   }
