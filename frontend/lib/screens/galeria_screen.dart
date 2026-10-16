@@ -56,7 +56,7 @@ class _GaleriaScreenState extends State<GaleriaScreen> {
   }
 
   Future baixarFoto(String urlFoto) async {
-    final uri = Uri.parse('http://localhost:3000$urlFoto');
+    final uri = Uri.parse('https://momentz-production.up.railway.app$urlFoto');
 
     await launchUrl(uri, mode: LaunchMode.externalApplication);
   }
@@ -105,7 +105,7 @@ class _GaleriaScreenState extends State<GaleriaScreen> {
 
                           child: InteractiveViewer(
                             child: Image.network(
-                              'http://localhost:3000${foto['url_foto']}',
+                              'https://momentz-production.up.railway.app${foto['url_foto']}',
                             ),
                           ),
                         ),
@@ -147,7 +147,7 @@ class _GaleriaScreenState extends State<GaleriaScreen> {
                 clipBehavior: Clip.antiAlias,
 
                 child: Image.network(
-                  'http://localhost:3000${foto['url_foto']}',
+                  'https://momentz-production.up.railway.app${foto['url_foto']}',
                   fit: BoxFit.cover,
                 ),
               ),

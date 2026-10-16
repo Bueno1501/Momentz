@@ -4,7 +4,7 @@ import 'package:http/http.dart' as http;
 import 'dart:typed_data';
 
 class ApiService {
-  static const String baseUrl = 'http://localhost:3000';
+  static const String baseUrl = 'https://momentz-production.up.railway.app';
 
   static String? token;
 

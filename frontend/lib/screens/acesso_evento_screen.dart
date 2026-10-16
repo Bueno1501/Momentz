@@ -32,7 +32,7 @@ class _AcessoEventoScreenState extends State<AcessoEventoScreen> {
 
     try {
       final response = await http.post(
-        Uri.parse('http://localhost:3000/eventos/acessar'),
+        Uri.parse('https://momentz-production.up.railway.app/eventos/acessar'),
         headers: {'Content-Type': 'application/json'},
         body: jsonEncode({'codigo_evento': codigo}),
       );
