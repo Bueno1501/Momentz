@@ -10,6 +10,12 @@ const upload = multer({
         fileSize: 10 * 1024 * 1024
     },
     fileFilter: (req, file, cb) => {
+        
+        console.log('Arquivo recebido', {
+            nome: file.originalname,
+            mimetype: file.mimetype
+        });
+
         if (!file.mimetype.startsWith('image/')) {
             return cb(new Error('Envie somente arquivos de imagem'));
         }
