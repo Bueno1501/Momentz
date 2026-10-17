@@ -1,27 +1,26 @@
 const express = require ('express');
-const router = express.Router();
 const multer = require('multer');
+
+const router = express.Router();
+
 
 const { 
     uploadFoto,
     listarFotosPorEvento
  } = require('../controllers/fotosController');
 
-const storage = multer.diskStorage({
-
-    destination: (req, file, cb) => {
-        cb(null, 'uploads/');
+const upload = multer({
+    storage: multer.memoryStorage(),
+    limits: {
+        fileSize: 10 * 1024 * 1024
     },
+    fileFilter: (req, file, cb) => {
+        if(!file.mimetype.startsWith('image/')) {
+            return cb(new Error('Envie somente arquivos de imagem'));
+        }
 
-    filename: (req, file, cb) => {
-        const nomeArquivo = Date.now() + '-' + file.originalname;
-
-        cb(null, nomeArquivo);
+        cb(null, true);
     }
-});
-
-const upload = multer ({
-    storage
 });
 
 router.post('/', upload.single('foto'), uploadFoto );
