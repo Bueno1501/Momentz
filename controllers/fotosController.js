@@ -1,83 +1,108 @@
+
 const conexao = require('../config/db');
+const crypto = require('crypto');
+const { enviarArquivo, gerarUrlTemporaria } = require('../services/r2Service');
 
-const uploadFoto = (req, res) => {
-
+const uploadFoto = async (req, res) => {
     if (!req.file) {
         return res.status(400).json({
             erro: 'Nenhuma foto enviada'
         });
     }
 
-    const  evento_id  = parseInt (req.body.evento_id);
+    const evento_id = Number.parseInt(req.body.evento_id, 10);
 
-    const nomeArquivo = req.file.filename;
+    if (!Number.isInteger(evento_id) || evento_id <= 0) {
+        return res.status(400).json({
+            erro: 'Evento inválido'
+        });
+    }
 
-    const urlFoto = `/uploads/${nomeArquivo}`;
+    const extensao = require('path').extname(req.file.originalname);
+    const nomeArquivo = `${crypto.randomUUID()}${extensao}`;
+    const chave = `fotos/${evento_id}/${nomeArquivo}`;
+
+    try {
+        await enviarArquivo({
+            chave,
+            buffer: req.file.buffer,
+            tipoConteudo: req.file.mimetype
+        });
+    } catch (erro) {
+        console.error('Erro ao enviar foto para o R2:', erro);
+        return res.status(502).json({
+            erro: 'Não foi possível armazenar a foto'
+        });
+    }
 
     const sql = `
-        INSERT INTO foto(
-            url_foto,
-            nome_arquivo,
-            evento_id
-        )
-            VALUES(?, ?, ?)
+        INSERT INTO foto (url_foto, nome_arquivo, evento_id)
+        VALUES (?, ?, ?)
     `;
 
-    conexao.query(
-        sql,
-        [
-            urlFoto,
-            nomeArquivo,
-            evento_id
-        ],
-
-        (erro, resultado) => {
-            if(erro) {
-                console.log(erro);
-
-                return res.status(500).json({
-                    erro: 'Erro ao Salvar foto'
-                });
-            }
-
-            return res.status(201).json({
-                mensagem: 'Foto enviado com sucesso',
-                foto_id: resultado.insertId,
-                url_foto: urlFoto
+    conexao.query(sql, [chave, nomeArquivo, evento_id], async (erro, resultado) => {
+        if (erro) {
+            console.error('Erro ao salvar foto no banco:', erro);
+            return res.status(500).json({
+                erro: 'A foto foi enviada, mas não foi possível registrar no banco'
             });
         }
-    );
 
-}
+        try {
+            const url = await gerarUrlTemporaria(chave);
 
-  const listarFotosPorEvento = (req, res) => {
+            return res.status(201).json({
+                mensagem: 'Foto enviada com sucesso',
+                foto_id: resultado.insertId,
+                url_foto: url
+            });
+        } catch (erroUrl) {
+            console.error('Erro ao gerar URL da foto:', erroUrl);
+            return res.status(201).json({
+                mensagem: 'Foto enviada com sucesso',
+                foto_id: resultado.insertId,
+                url_foto: null
+            });
+        }
+    });
+};
 
-        const { eventoId } = req.params;
+const listarFotosPorEvento = (req, res) => {
+    const { eventoId } = req.params;
 
-        const sql = `
-            SELECT * FROM foto
-            WHERE evento_id = ? 
-            ORDER BY foto_id DESC
-        `;
+    const sql = `
+        SELECT * FROM foto
+        WHERE evento_id = ?
+        ORDER BY foto_id DESC
+    `;
 
-        conexao.query(
-            sql, [eventoId],
+    conexao.query(sql, [eventoId], async (erro, resultado) => {
+        if (erro) {
+            console.error('Erro ao buscar fotos:', erro);
+            return res.status(500).json({
+                erro: 'Erro ao buscar fotos'
+            });
+        }
 
-            (erro, resultado) => {
-                if (erro) {
-                    console.log(erro);
+        try {
+            const fotos = await Promise.all(
+                resultado.map(async (foto) => ({
+                    ...foto,
+                    url_foto: await gerarUrlTemporaria(foto.url_foto)
+                }))
+            );
 
-                    return res.status(500).json({
-                        erro: 'Erro ao buscar fotos'
-                    });
-                }
+            return res.status(200).json(fotos);
+        } catch (erroUrl) {
+            console.error('Erro ao gerar URLs das fotos:', erroUrl);
+            return res.status(500).json({
+                erro: 'Erro ao preparar visualização das fotos'
+            });
+        }
+    });
+};
 
-                return res.status(200).json(resultado);
-            }
-        );
-    };
-
- module.exports = {
+module.exports = {
     uploadFoto,
     listarFotosPorEvento
-  };
+};

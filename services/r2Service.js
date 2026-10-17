@@ -1,12 +1,14 @@
+
 const {
     S3Client,
-    PutObjectcommand,
-    GetObjectCommand
+    PutObjectCommand,
+    GetObjectCommand,
+    DeleteObjectCommand
 } = require('@aws-sdk/client-s3');
 
 const { getSignedUrl } = require('@aws-sdk/s3-request-presigner');
 
-const obrigatorias =[
+const obrigatorias = [
     'R2_ACCESS_KEY_ID',
     'R2_SECRET_ACCESS_KEY',
     'R2_BUCKET_NAME',
@@ -25,8 +27,8 @@ const s3 = new S3Client({
     region: 'auto',
     endpoint: process.env.R2_ENDPOINT,
     credentials: {
-         accessKeyId: process.env.R2_ACCESS_KEY_ID,
-         secretAccessKey: process.env.R2_SECRET_ACCESS_KEY
+        accessKeyId: process.env.R2_ACCESS_KEY_ID,
+        secretAccessKey: process.env.R2_SECRET_ACCESS_KEY
     }
 });
 
@@ -48,9 +50,9 @@ async function gerarUrlTemporaria(chave, validadeSegundos = 3600) {
         s3,
         new GetObjectCommand({
             Bucket: bucket,
-            key: chave
+            Key: chave
         }),
-        { expiresIn: validadeSegundos}
+        { expiresIn: validadeSegundos }
     );
 }
 
@@ -65,4 +67,4 @@ module.exports = {
     enviarArquivo,
     gerarUrlTemporaria,
     excluirArquivos
-}
+};

@@ -1,27 +1,24 @@
+
 const express = require('express');
 const multer = require('multer');
 
-
 const router = express.Router();
 
-const storage = multer.diskStorage({
-
-    destination: (req, file, cb) => {
-        cb(null, 'uploads/convites/');
+const upload = multer({
+    storage: multer.memoryStorage(),
+    limits: {
+        fileSize: 10 * 1024 * 1024
     },
+    fileFilter: (req, file, cb) => {
+        if (!file.mimetype.startsWith('image/')) {
+            return cb(new Error('Envie somente arquivos de imagem'));
+        }
 
-    filename: (req, file, cb) => {
-        const nomeArquivo = Date.now() + '-' + file.originalname;
-
-        cb(null, nomeArquivo);
+        cb(null, true);
     }
 });
 
-const upload = multer({
-    storage
-});
-
-const{
+const {
     cadastrarEvento,
     listarEvento,
     buscarEventoUsuario,
@@ -29,7 +26,7 @@ const{
     buscarEventoPorToken,
     importarConvite,
     buscarEventoPorId
-} =  require('../controllers/eventosController');
+} = require('../controllers/eventosController');
 
 const {
     cadastrarConvidadoPublico
@@ -37,10 +34,11 @@ const {
 
 router.post('/', cadastrarEvento);
 router.get('/', listarEvento);
-router.get('/usuario/:usuarioId' , buscarEventoUsuario);
+router.get('/usuario/:usuarioId', buscarEventoUsuario);
 router.post('/acessar', acessarEvento);
 router.get('/convite/:token', buscarEventoPorToken);
 router.put('/:eventoId/convite', upload.single('convite'), importarConvite);
 router.get('/:eventoId', buscarEventoPorId);
 router.post('/publico/:token', cadastrarConvidadoPublico);
+
 module.exports = router;

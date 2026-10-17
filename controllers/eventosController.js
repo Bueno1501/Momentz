@@ -1,5 +1,11 @@
 const conexao = require('../config/db');
 const crypto = require('crypto');
+const path = require('path');
+
+const {
+    enviarArquivo,
+    gerarUrlTemporaria
+} = require('../services/r2Service');
 
 const cadastrarEvento = (req, res) => {
 
@@ -168,6 +174,7 @@ const acessarEvento = (req, res) => {
     );
 };
 
+
 const buscarEventoPorToken = (req, res) => {
     const { token } = req.params;
 
@@ -193,34 +200,51 @@ const buscarEventoPorToken = (req, res) => {
         WHERE token_convite = ?
     `;
 
-    conexao.query(
-        sql,[token],
-        (erro, resultado) => {
+    conexao.query(sql, [token], async (erro, resultado) => {
+        if (erro) {
+            console.error('Erro ao buscar evento pelo convite:', erro);
 
-            if (erro) {
-                console.log(erro)
-
-                return res.status(500).json({
-                    erro: 'Erro ao buscar evento pelo convite'
-                });
-            }
-
-            if (resultado.length === 0) {
-                return res.status(400).json({
-                    erro: 'Convite inválido ou evento não encontrado! '
-                });
-            }
-
-            return res.status(200).json({
-                mensagem: 'Evento encontrado',
-                evento: resultado[0]
+            return res.status(500).json({
+                erro: 'Erro ao buscar evento pelo convite'
             });
         }
-    );
+
+        if (resultado.length === 0) {
+            return res.status(404).json({
+                erro: 'Convite inválido ou evento não encontrado'
+            });
+        }
+
+        const evento = resultado[0];
+
+        if (evento.convite_url) {
+            try {
+                if (evento.convite_url.startsWith('convites/')) {
+                    evento.convite_url = await gerarUrlTemporaria(
+                        evento.convite_url
+                    );
+                } else if (!evento.convite_url.startsWith('http')) {
+                    evento.convite_url = null;
+                }
+            } catch (erroUrl) {
+                console.error('Erro ao gerar URL do convite:', erroUrl);
+
+                return res.status(502).json({
+                    erro: 'Não foi possível carregar a imagem do convite'
+                });
+            }
+        }
+
+        return res.status(200).json({
+            mensagem: 'Evento encontrado',
+            evento
+        });
+    });
 };
 
-const importarConvite = (req, res) => {
 
+
+const importarConvite = async (req, res) => {
     const { eventoId } = req.params;
 
     if (!req.file) {
@@ -229,7 +253,23 @@ const importarConvite = (req, res) => {
         });
     }
 
-    const urlConvite = `/uploads/convites/${req.file.filename}`;
+    const extensao = path.extname(req.file.originalname);
+    const nomeArquivo = `${crypto.randomUUID()}${extensao}`;
+    const chave = `convites/${eventoId}/${nomeArquivo}`;
+
+    try {
+        await enviarArquivo({
+            chave,
+            buffer: req.file.buffer,
+            tipoConteudo: req.file.mimetype
+        });
+    } catch (erro) {
+        console.error('Erro ao enviar convite para o R2:', erro);
+
+        return res.status(502).json({
+            erro: 'Não foi possível armazenar o convite'
+        });
+    }
 
     const sql = `
         UPDATE evento
@@ -237,33 +277,38 @@ const importarConvite = (req, res) => {
         WHERE evento_id = ?
     `;
 
-    conexao.query(
-        sql,
-        [urlConvite, eventoId],
-        (erro, resultado) => {
+    conexao.query(sql, [chave, eventoId], async (erro, resultado) => {
+        if (erro) {
+            console.error('Erro ao salvar convite no banco:', erro);
 
-            if (erro) {
-                console.log(erro);
+            return res.status(500).json({
+                erro: 'Erro ao salvar convite'
+            });
+        }
 
-                return res.status(500).json({
-                    erro: 'Erro ao salvar convite'
-                });
-            }
+        if (resultado.affectedRows === 0) {
+            return res.status(404).json({
+                erro: 'Evento não encontrado'
+            });
+        }
 
-            if (resultado.affectedRows === 0) {
-                return res.status(404).json({
-                    erro: 'Evento não encontrado'
-                });
-            }
+        try {
+            const url = await gerarUrlTemporaria(chave);
 
             return res.status(200).json({
                 mensagem: 'Convite importado com sucesso',
-                convite_url: urlConvite
+                convite_url: url
+            });
+        } catch (erroUrl) {
+            console.error('Erro ao gerar URL do convite:', erroUrl);
+
+            return res.status(200).json({
+                mensagem: 'Convite armazenado, mas não foi possível gerar o link',
+                convite_url: null
             });
         }
-    );
+    });
 };
-
 const buscarEventoPorId = (req, res) => {
     const { eventoId } = req.params;
 

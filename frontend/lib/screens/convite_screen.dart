@@ -189,9 +189,13 @@ class _ConviteScreenState extends State<ConviteScreen> {
     }
 
     final urlConvite = convite!['convite_url']?.toString();
+
     final urlCompleta = urlConvite == null || urlConvite.isEmpty
         ? null
-        : Uri.parse(ApiService.baseUrl).resolve(urlConvite).toString();
+        : (urlConvite.startsWith('http://') ||
+              urlConvite.startsWith('https://'))
+        ? urlConvite
+        : null;
 
     return Scaffold(
       appBar: AppBar(
