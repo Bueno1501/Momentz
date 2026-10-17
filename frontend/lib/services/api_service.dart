@@ -2,11 +2,36 @@ import 'dart:convert';
 
 import 'package:http/http.dart' as http;
 import 'dart:typed_data';
+import 'package:http_parser/http_parser.dart';
 
 class ApiService {
   static const String baseUrl = 'https://momentz-production.up.railway.app';
 
   static String? token;
+
+  static MediaType? _tipoImagem(String nomeArquivo) {
+    final extensao = nomeArquivo.split('.').last.toLowerCase();
+
+    switch (extensao) {
+      case 'jpg':
+      case 'jpeg':
+        return MediaType('image', 'jpeg');
+      case 'png':
+        return MediaType('image', 'png');
+      case 'webp':
+        return MediaType('image', 'webp');
+      case 'gif':
+        return MediaType('image', 'gif');
+      case 'heic':
+        return MediaType('image', 'heic');
+      case 'heif':
+        return MediaType('image', 'heif');
+      case 'avif':
+        return MediaType('image', 'avif');
+      default:
+        return null;
+    }
+  }
 
   static Future cadastrarEvento({
     required String tipoEvento,
@@ -244,7 +269,12 @@ class ApiService {
     request.fields['evento_id'] = eventoId.toString();
 
     request.files.add(
-      http.MultipartFile.fromBytes('foto', bytes, filename: nomeArquivo),
+      http.MultipartFile.fromBytes(
+        'foto',
+        bytes,
+        filename: nomeArquivo,
+        contentType: _tipoImagem(nomeArquivo),
+      ),
     );
 
     final response = await request.send();
@@ -263,7 +293,12 @@ class ApiService {
     );
 
     request.files.add(
-      http.MultipartFile.fromBytes('convite', bytes, filename: nomeArquivo),
+      http.MultipartFile.fromBytes(
+        'convite',
+        bytes,
+        filename: nomeArquivo,
+        contentType: _tipoImagem(nomeArquivo),
+      ),
     );
 
     final response = await request.send();
