@@ -268,13 +268,30 @@ class ApiService {
 
     final response = await request.send();
     final resposta = await response.stream.bytesToString();
-    final dados = jsonDecode(resposta);
+
+    dynamic dados;
+
+    try {
+      dados = jsonDecode(resposta);
+    } catch (_) {
+      return {
+        'erro': 'O servidor retornou uma resposta inválida.',
+        'status': response.statusCode,
+      };
+    }
 
     if (response.statusCode == 200) {
       return Map<String, dynamic>.from(dados);
     }
 
-    return {'erro': dados['erro'] ?? 'Erro ao enviar o convite'};
+    if (dados is Map<String, dynamic>) {
+      return {
+        'erro': dados['erro'] ?? 'Erro ao enviar o convite',
+        'status': response.statusCode,
+      };
+    }
+
+    return {'erro': 'Erro ao enviar o convite', 'status': response.statusCode};
   }
 
   static Future<Map<String, dynamic>> buscarOrcamento(int eventoId) async {
