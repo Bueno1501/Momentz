@@ -47,12 +47,24 @@ class _GaleriaScreenState extends State<GaleriaScreen> {
     carregarFotos();
   }
 
-  Future carregarFotos() async {
-    final lista = await ApiService.buscarFotos(widget.eventoId);
+  Future<void> carregarFotos() async {
+    try {
+      final lista = await ApiService.buscarFotos(widget.eventoId);
 
-    setState(() {
-      fotos = lista;
-    });
+      debugPrint('FOTOS RECEBIDAS: ${lista.length}');
+
+      if (lista.isNotEmpty) {
+        debugPrint('URL DA PRIMEIRA FOTO: ${lista.first['url_foto']}');
+      }
+
+      if (!mounted) return;
+
+      setState(() {
+        fotos = lista;
+      });
+    } catch (erro) {
+      debugPrint('ERRO AO BUSCAR FOTOS: $erro');
+    }
   }
 
   Future baixarFoto(String urlFoto) async {
@@ -90,6 +102,8 @@ class _GaleriaScreenState extends State<GaleriaScreen> {
           itemBuilder: (context, index) {
             final foto = fotos[index];
 
+            final String? urlFoto = foto['url_foto'] as String?;
+
             return GestureDetector(
               onTap: () {
                 showDialog(
@@ -105,7 +119,12 @@ class _GaleriaScreenState extends State<GaleriaScreen> {
 
                           child: InteractiveViewer(
                             child: Image.network(
-                              'https://momentz-production.up.railway.app${foto['url_foto']}',
+                              urlFoto ?? '',
+                              errorBuilder: (context, error, stackTrace) {
+                                return const Center(
+                                  child: Icon(Icons.broken_image, size: 40),
+                                );
+                              },
                             ),
                           ),
                         ),
@@ -146,10 +165,19 @@ class _GaleriaScreenState extends State<GaleriaScreen> {
               child: Card(
                 clipBehavior: Clip.antiAlias,
 
-                child: Image.network(
-                  'https://momentz-production.up.railway.app${foto['url_foto']}',
-                  fit: BoxFit.cover,
-                ),
+                child: urlFoto != null && urlFoto.isNotEmpty
+                    ? Image.network(
+                        urlFoto,
+                        fit: BoxFit.cover,
+                        errorBuilder: (context, error, stackTrace) {
+                          return const Center(
+                            child: Icon(Icons.broken_image, size: 40),
+                          );
+                        },
+                      )
+                    : const Center(
+                        child: Icon(Icons.image_not_supported, size: 40),
+                      ),
               ),
             );
           },
