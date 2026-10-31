@@ -12,6 +12,7 @@ const convidadosRoutes = require('./routes/convidadosRoutes');
 const fornecedoresRoutes = require('./routes/fornecedoresRoutes');
 const presentesRoutes = require('./routes/presentesRoutes');
 const orcamentoRouter = require('./routes/orcamentoRoutes');
+const mercadoPagoRoutes = require('./routes/mercadoPagoRoutes');
 
 const app = express();
 
@@ -25,6 +26,7 @@ app.use('/fornecedores', fornecedoresRoutes);
 app.use('/presentes', presentesRoutes);
 app.use('/fotos', fotosRoutes);
 app.use('/orcamento', orcamentoRouter);
+app.use('/mercadopago', mercadoPagoRoutes);
 
 app.get('/', (req, res) => {
     res.send('Momentz ON!');
