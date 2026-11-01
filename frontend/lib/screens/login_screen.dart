@@ -30,10 +30,6 @@ class _LoginScreenState extends State<LoginScreen> {
     super.dispose();
   }
 
-  // =====================================================
-  // AUTENTICAÇÃO
-  // =====================================================
-
   Future<void> realizarLogin() async {
     FocusScope.of(context).unfocus();
 
@@ -104,10 +100,6 @@ class _LoginScreenState extends State<LoginScreen> {
     }
   }
 
-  // =====================================================
-  // ESTILIZAÇÃO DOS CAMPOS
-  // =====================================================
-
   InputDecoration decoracaoCampo({
     required String hint,
     required IconData icone,
@@ -149,10 +141,6 @@ class _LoginScreenState extends State<LoginScreen> {
       ),
     );
   }
-
-  // =====================================================
-  // TELA DE LOGIN
-  // =====================================================
 
   @override
   Widget build(BuildContext context) {
@@ -209,7 +197,6 @@ class _LoginScreenState extends State<LoginScreen> {
                   fit: StackFit.expand,
 
                   children: [
-                    // FUNDO DECORATIVO
                     Image.asset(
                       'assets/images/fundo_login.png',
                       fit: BoxFit.cover,
@@ -220,10 +207,8 @@ class _LoginScreenState extends State<LoginScreen> {
                       },
                     ),
 
-                    // CAMADA DE CONTRASTE
                     Container(color: Colors.black.withValues(alpha: 0.08)),
 
-                    // CONTEÚDO
                     SafeArea(
                       child: LayoutBuilder(
                         builder: (context, innerConstraints) {
@@ -247,7 +232,6 @@ class _LoginScreenState extends State<LoginScreen> {
                                   mainAxisAlignment: MainAxisAlignment.center,
 
                                   children: [
-                                    // LOGO
                                     const Icon(
                                       Icons.camera_alt_outlined,
                                       size: 90,
@@ -283,7 +267,6 @@ class _LoginScreenState extends State<LoginScreen> {
 
                                     SizedBox(height: espaco + 12),
 
-                                    // TÍTULO
                                     const Text(
                                       'Bem-Vindo ao Momentz',
                                       textAlign: TextAlign.center,
@@ -329,7 +312,6 @@ class _LoginScreenState extends State<LoginScreen> {
 
                                     const SizedBox(height: 18),
 
-                                    // CAMPO SENHA
                                     TextField(
                                       controller: senhaController,
 
@@ -367,7 +349,6 @@ class _LoginScreenState extends State<LoginScreen> {
 
                                     SizedBox(height: espaco),
 
-                                    // BOTÃO ENTRAR
                                     SizedBox(
                                       width: double.infinity,
                                       height: 64,
@@ -475,7 +456,6 @@ class _LoginScreenState extends State<LoginScreen> {
 
                                     SizedBox(height: espaco),
 
-                                    // BOTÃO CRIAR CONTA
                                     SizedBox(
                                       width: double.infinity,
                                       height: 64,
