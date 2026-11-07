@@ -71,6 +71,9 @@ flutter:
     - assets/images/fundo_convidados.png
     - assets/images/fundo_login.png
     - assets/images/fundo_home.png
+    - assets/images/fundo_fornecedores.png
+    - assets/images/fundo_orcamento.png
+    - assets/images/fundo_fornecedores_desktop.png
   # To add assets to your application, add an assets section, like this:
   # assets:
   #   - images/a_dot_burr.jpeg
