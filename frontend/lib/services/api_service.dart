@@ -247,39 +247,67 @@ class ApiService {
     return [];
   }
 
-  static Future<List<dynamic>> buscarFotos(int eventoId) async {
+  static Future<List<dynamic>> buscarFotosAdministrador() async {
     final response = await http.get(
-      Uri.parse('$baseUrl/fotos/evento/$eventoId'),
+      Uri.parse('$baseUrl/fotos/admin/evento'),
+      headers: {'Authorization': 'Bearer $token'},
     );
 
     if (response.statusCode == 200) {
-      return jsonDecode(response.body);
+      return List<dynamic>.from(jsonDecode(response.body));
     }
 
-    return [];
+    throw Exception(
+      'Erro ao buscar fotos: ${response.statusCode} - ${response.body}',
+    );
   }
 
-  static Future uploadFoto({
-    required Uint8List bytes,
-    required String nomeArquivo,
-    required int eventoId,
+  static Future<Map<String, dynamic>> uploadFotosAdministrador({
+    required List<Uint8List> arquivosBytes,
+    required List<String> nomesArquivos,
   }) async {
-    var request = http.MultipartRequest('POST', Uri.parse('$baseUrl/fotos'));
+    if (arquivosBytes.isEmpty || arquivosBytes.length != nomesArquivos.length) {
+      throw Exception('Seleção de fotos inválida.');
+    }
 
-    request.fields['evento_id'] = eventoId.toString();
-
-    request.files.add(
-      http.MultipartFile.fromBytes(
-        'foto',
-        bytes,
-        filename: nomeArquivo,
-        contentType: _tipoImagem(nomeArquivo),
-      ),
+    final request = http.MultipartRequest(
+      'POST',
+      Uri.parse('$baseUrl/fotos/admin/upload'),
     );
 
-    final response = await request.send();
+    request.headers['Authorization'] = 'Bearer $token';
 
-    return response.statusCode == 201;
+    for (int i = 0; i < arquivosBytes.length; i++) {
+      request.files.add(
+        http.MultipartFile.fromBytes(
+          'fotos',
+          arquivosBytes[i],
+          filename: nomesArquivos[i],
+          contentType: _tipoImagem(nomesArquivos[i]),
+        ),
+      );
+    }
+
+    final response = await request.send();
+    final resposta = await response.stream.bytesToString();
+
+    dynamic dados;
+
+    try {
+      dados = jsonDecode(resposta);
+    } catch (_) {
+      throw Exception('O servidor retornou uma resposta inválida.');
+    }
+
+    if (response.statusCode == 201) {
+      return Map<String, dynamic>.from(dados);
+    }
+
+    throw Exception(
+      dados is Map
+          ? dados['erro'] ?? 'Erro ao enviar fotos.'
+          : 'Erro ao enviar fotos: ${response.statusCode}',
+    );
   }
 
   static Future<Map<String, dynamic>> uploadConvite({
