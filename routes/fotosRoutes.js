@@ -43,7 +43,7 @@ const configurarUpload = (limiteFotos) => {
 
 const uploadConvidado = configurarUpload(5);
 
-const uploadAdministrador = configurarUpload(20);
+const uploadAdministrador = configurarUpload(25);
 
 
 router.post(
