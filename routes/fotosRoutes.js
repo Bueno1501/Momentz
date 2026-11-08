@@ -1,35 +1,76 @@
-const express = require ('express');
+
+const express = require('express');
 const multer = require('multer');
 
 const router = express.Router();
 
+const authMiddleware = require('../middlewares/authMiddleware');
+const authConvidadoMiddleware = require('../middlewares/authConvidadoMiddleware');
 
-const { 
-    uploadFoto,
-    listarFotosPorEvento
- } = require('../controllers/fotosController');
+const {
+    uploadFotosConvidado,
+    uploadFotosAdministrador,
+    listarFotosConvidado,
+    listarFotosAdministrador
+} = require('../controllers/fotosController');
 
-const upload = multer({
-    storage: multer.memoryStorage(),
-    limits: {
-        fileSize: 10 * 1024 * 1024
-    },
-    fileFilter: (req, file, cb) => {
-        console.log('Arquivo recebido na galeria:', {
-             nome: file.originalname,
-        mimetype: file.mimetype
-        });
 
-        if(!file.mimetype.startsWith('image/')) {
-            return cb(new Error('Envie somente arquivos de imagem'));
+const configurarUpload = (limiteFotos) => {
+    return multer({
+        storage: multer.memoryStorage(),
+
+        limits: {
+            fileSize: 10 * 1024 * 1024,
+            files: limiteFotos
+        },
+
+        fileFilter: (req, file, cb) => {
+            const tiposPermitidos = [
+                'image/jpeg',
+                'image/png',
+                'image/webp',
+                'image/gif'
+            ];
+
+            if (!tiposPermitidos.includes(file.mimetype)) {
+                return cb(new Error('Formato de imagem não permitido.'));
+            }
+
+            cb(null, true);
         }
+    });
+};
 
-        cb(null, true);
-    }
-});
+const uploadConvidado = configurarUpload(5);
 
-router.post('/', upload.single('foto'), uploadFoto );
+const uploadAdministrador = configurarUpload(20);
 
-router.get('/evento/:eventoId', listarFotosPorEvento);
+
+router.post(
+    '/convidado/upload',
+    authConvidadoMiddleware,
+    uploadConvidado.array('fotos', 5),
+    uploadFotosConvidado
+);
+
+router.get(
+    '/convidado/minhas',
+    authConvidadoMiddleware,
+    listarFotosConvidado
+);
+
+
+router.post(
+    '/admin/upload',
+    authMiddleware,
+    uploadAdministrador.array('fotos', 20),
+    uploadFotosAdministrador
+);
+
+router.get(
+    '/admin/evento',
+    authMiddleware,
+    listarFotosAdministrador
+);
 
 module.exports = router;

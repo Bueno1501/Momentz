@@ -53,6 +53,30 @@ async function enviarEmailBoasVindas(destinatario, nome){
 
 }
 
+async function enviarCodigoVerificacao(destinatario, codigo) {
+    await transporter.sendMail({
+        from: `"Momentz" <${process.env.EMAIL_USER}>`,
+        to: destinatario,
+        subject: 'Codigo de acesso - Momentz',
+        html:`
+        <<div style="font-family: Arial; max-width:600px; margin:auto;">
+                <h1 style="color:#8E24AA;">Confirme seu acesso!</h1>
+
+                <p>Utilize o código abaixo para acessar seu evento:</p>
+
+                <h2 style="color:#8E24AA; letter-spacing:8px;">
+                    ${codigo}
+                </h2>
+
+                <p>Este código expira em 5 minutos.</p>
+
+                <p>Se você não solicitou este acesso, ignore este e-mail.</p>
+            </div>`
+
+    });
+}
+
 module.exports = {
-    enviarEmailBoasVindas
+    enviarEmailBoasVindas,
+    enviarCodigoVerificacao
 }

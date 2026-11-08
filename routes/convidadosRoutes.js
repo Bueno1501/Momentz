@@ -10,7 +10,11 @@ const {
     alterarStatusConvidados,
     excluirConvidado,
     buscarConvitePorToken,
-    responderConvite
+    responderConvite,
+    enviarCodigoConvidado,
+    validarCodigoConvidado,
+    renovarSessaoConvidado,
+    logoutConvidado
 } = require('../controllers/convidadosController');
 
 router.get('/convite/:token', buscarConvitePorToken);
@@ -18,6 +22,14 @@ router.get('/convite/:token', buscarConvitePorToken);
 router.put('/convite/:token/status', responderConvite);
 
 router.post('/', authMiddleware, cadastrarConvidado);
+
+router.post('/enviar-codigo', enviarCodigoConvidado);
+
+router.post('/validar-codigo', validarCodigoConvidado);
+
+router.post('/renovar-sessao', renovarSessaoConvidado);
+
+router.post('/logout', logoutConvidado);
 
 router.get('/evento/:eventoId', authMiddleware, listarConvidadosPorEvento);
 
