@@ -307,7 +307,49 @@ const callbackMercadoPago = async (req, res) => {
     }
 };
 
+
+const verificarConexaoMercadoPago = async (req, res) => {
+    if (
+        !req.usuario ||
+        req.usuario.tipo_usuario !== 'Administrador' ||
+        !req.usuario.usuario_id
+    ) {
+        return res.status(403).json({
+            erro: 'Acesso permitido somente ao administrador.'
+        });
+    }
+
+    try {
+        const sql = `
+            SELECT usuario_id
+            FROM mercadopago_conexao
+            WHERE usuario_id = ?
+            LIMIT 1
+        `;
+
+        const resultados = await consultarBanco(sql, [
+            req.usuario.usuario_id
+        ]);
+
+        return res.status(200).json({
+            conectado: resultados.length > 0
+        });
+
+    } catch (erro) {
+        console.error(
+            'Erro ao verificar conexão Mercado Pago:',
+            erro.message
+        );
+
+        return res.status(500).json({
+            erro: 'Não foi possível verificar a conexão com o Mercado Pago.'
+        });
+    }
+};
+
+
 module.exports = {
     conectarMercadoPago,
-    callbackMercadoPago
+    callbackMercadoPago,
+    verificarConexaoMercadoPago
 };

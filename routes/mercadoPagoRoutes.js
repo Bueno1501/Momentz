@@ -6,10 +6,13 @@ const authMiddleware = require('../middlewares/authMiddleware');
 
 const {
     conectarMercadoPago,
-    callbackMercadoPago
+    callbackMercadoPago,
+    verificarConexaoMercadoPago
 } = require('../controllers/mercadoPagoController');
 
 router.post('/conectar', authMiddleware, conectarMercadoPago);
+
+router.get('/status', authMiddleware, verificarConexaoMercadoPago);
 
 router.get('/oauth/callback', callbackMercadoPago);
 
