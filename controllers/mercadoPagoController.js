@@ -308,6 +308,7 @@ const callbackMercadoPago = async (req, res) => {
 };
 
 
+
 const verificarConexaoMercadoPago = async (req, res) => {
     if (
         !req.usuario ||
@@ -320,8 +321,11 @@ const verificarConexaoMercadoPago = async (req, res) => {
     }
 
     try {
+        // Busca o token criptografado do administrador
         const sql = `
-            SELECT usuario_id
+            SELECT
+                access_token_enc,
+                mp_user_id
             FROM mercadopago_conexao
             WHERE usuario_id = ?
             LIMIT 1
@@ -331,21 +335,80 @@ const verificarConexaoMercadoPago = async (req, res) => {
             req.usuario.usuario_id
         ]);
 
+        if (resultados.length === 0) {
+            return res.status(200).json({
+                conectado: false,
+                conta_validada: false
+            });
+        }
+
+        const conexaoMP = resultados[0];
+
+        // Descriptografa o Access Token
+        const accessToken = descriptografarToken(
+            conexaoMP.access_token_enc
+        );
+
+        // Consulta a conta autorizada no Mercado Pago
+        const resposta = await fetch(
+            'https://api.mercadopago.com/users/me',
+            {
+                method: 'GET',
+                headers: {
+                    Authorization: `Bearer ${accessToken}`,
+                    'Content-Type': 'application/json'
+                },
+                signal: AbortSignal.timeout(15000)
+            }
+        );
+
+        if (resposta.status === 401 || resposta.status === 403) {
+            return res.status(200).json({
+                conectado: false,
+                conta_validada: false,
+                reconectar: true
+            });
+        }
+
+        if (!resposta.ok) {
+            console.error(
+                'Erro ao consultar conta Mercado Pago:',
+                resposta.status
+            );
+
+            return res.status(502).json({
+                erro: 'Não foi possível validar a conta no Mercado Pago.'
+            });
+        }
+
+        const dados = await resposta.json();
+
+        // Confere se a conta retornada é a mesma vinculada
+        if (
+            String(dados.id) !== String(conexaoMP.mp_user_id)
+        ) {
+            return res.status(502).json({
+                erro: 'A conta retornada não corresponde à conexão registrada.'
+            });
+        }
+
         return res.status(200).json({
-            conectado: resultados.length > 0
+            conectado: true,
+            conta_validada: true
         });
 
     } catch (erro) {
         console.error(
-            'Erro ao verificar conexão Mercado Pago:',
+            'Erro ao validar conexão Mercado Pago:',
             erro.message
         );
 
         return res.status(500).json({
-            erro: 'Não foi possível verificar a conexão com o Mercado Pago.'
+            erro: 'Não foi possível validar a conexão com o Mercado Pago.'
         });
     }
 };
+
 
 
 module.exports = {
