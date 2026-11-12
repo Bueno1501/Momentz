@@ -1,114 +1,157 @@
-const conexao = require('../config/db');
+const conexao = require("../config/db");
 
-const cadastrarFornecedor = (req, res) => {
-    const{
-        nome,
-        categoria,
-        telefone,
-        email,
-        valor,
-        observacao,status_fornecedor,
-        evento_id
-    } = req.body;
-
-    const sql = `
-        INSERT INTO fornecedor
-        (
-            nome,
-            categoria,
-            telefone,
-            email,
-            valor,
-            observacao,
-            status_fornecedor,
-            evento_id
-        )
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+const verificarEventoAdministrador = (usuarioId, eventoId, callback) => {
+  const sql = `
+        SELECT evento_id
+        FROM evento
+        WHERE evento_id = ?
+          AND usuario_id = ?
+        LIMIT 1
     `;
 
-    conexao.query(
-        sql,
-        [
-            nome,
-            categoria,
-            telefone,
-            email,
-            valor,
-            observacao,
-            status_fornecedor,
-            evento_id
-        ],
-        (erro, resultado) => {
+  conexao.query(sql, [eventoId, usuarioId], (erro, resultados) => {
+    if (erro) {
+      return callback(erro);
+    }
 
-            if (erro) {
-                console.log(erro);
-
-                return res.status(500).json({
-                    erro: 'Erro ao cadastrar fornecedor'
-                });
-            }
-
-            return res.status(201).json({
-                mensagem: 'Fornecedor cadastrado com sucesso!',
-                fornecedor_id: resultado.insertId
-            });
-        }
-    );
+    callback(null, resultados.length > 0 ? resultados[0].evento_id : null);
+  });
 };
 
-const listarFornecedores = (req, res) => {
-    const sql = `
-    SELECT * FROM fornecedor
-    ORDER BY nome
-    `;
+const cadastrarFornecedor = (req, res) => {
+  if (req.usuario.tipo_usuario !== "Administrador") {
+    return res.status(403).json({
+      erro: "Acesso permitido somente ao administrador.",
+    });
+  }
 
-    conexao.query(
+  const {
+    nome,
+    categoria,
+    telefone,
+    email,
+    valor,
+    observacao,
+    status_fornecedor,
+    evento_id,
+  } = req.body;
+
+  if (!evento_id) {
+    return res.status(400).json({
+      erro: "O evento não foi informado.",
+    });
+  }
+
+  verificarEventoAdministrador(
+    req.usuario.usuario_id,
+    evento_id,
+    (erro, eventoValidado) => {
+      if (erro) {
+        console.error(erro);
+
+        return res.status(500).json({
+          erro: "Erro ao validar evento.",
+        });
+      }
+
+      if (!eventoValidado) {
+        return res.status(403).json({
+          erro: "Evento não encontrado ou não pertence ao administrador.",
+        });
+      }
+
+      const sql = `
+                INSERT INTO fornecedor (
+                    nome,
+                    categoria,
+                    telefone,
+                    email,
+                    valor,
+                    observacao,
+                    status_fornecedor,
+                    evento_id
+                )
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+            `;
+
+      conexao.query(
         sql,
+        [
+          nome,
+          categoria,
+          telefone,
+          email,
+          valor,
+          observacao,
+          status_fornecedor,
+          eventoValidado,
+        ],
         (erro, resultado) => {
-            if(erro) {
-                console.log(erro);
+          if (erro) {
+            console.error(erro);
 
-                return res.status(500).json({
-                    erro: 'Erro ao listar fornecedores'
-                });
-            }
+            return res.status(500).json({
+              erro: "Erro ao cadastrar fornecedor.",
+            });
+          }
 
-            return res.status(200).json(resultado);
-        }
-    );
+          return res.status(201).json({
+            mensagem: "Fornecedor cadastrado com sucesso!",
+            fornecedor_id: resultado.insertId,
+          });
+        },
+      );
+    },
+  );
 };
 
 const listarFornecedoresEvento = (req, res) => {
+  if (req.usuario.tipo_usuario !== "Administrador") {
+    return res.status(403).json({
+      erro: "Acesso permitido somente ao administrador.",
+    });
+  }
 
-    const { eventoId } = req.params;
+  const { eventoId } = req.params;
+  const usuarioId = req.usuario.usuario_id;
+
+  verificarEventoAdministrador(usuarioId, eventoId, (erro, eventoValidado) => {
+    if (erro) {
+      console.error(erro);
+
+      return res.status(500).json({
+        erro: "Erro ao validar evento.",
+      });
+    }
+
+    if (!eventoValidado) {
+      return res.status(403).json({
+        erro: "Evento não encontrado ou não pertence ao administrador.",
+      });
+    }
 
     const sql = `
-        SELECT *
-        FROM fornecedor
-        WHERE evento_id = ?
-        ORDER BY nome
-    `;
+                SELECT *
+                FROM fornecedor
+                WHERE evento_id = ?
+                ORDER BY nome
+            `;
 
-    conexao.query(
-        sql,
-        [eventoId],
-        (erro, resultado) => {
+    conexao.query(sql, [eventoValidado], (erro, resultado) => {
+      if (erro) {
+        console.error(erro);
 
-            if (erro) {
-                console.log(erro);
+        return res.status(500).json({
+          erro: "Erro ao listar fornecedores.",
+        });
+      }
 
-                return res.status(500).json({
-                    erro: 'Erro ao listar fornecedores'
-                });
-            }
-
-            return res.status(200).json(resultado);
-        }
-    );
+      return res.status(200).json(resultado);
+    });
+  });
 };
 
 module.exports = {
-    cadastrarFornecedor,
-    listarFornecedores,
-    listarFornecedoresEvento
+  cadastrarFornecedor,
+  listarFornecedoresEvento,
 };

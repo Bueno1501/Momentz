@@ -19,6 +19,13 @@ const authMiddleware = (req, res, next) => {
             process.env.JWT_SECRET
         );
 
+        if (decoded.tipo_usuario !== 'Administrador') {
+    return res.status(403).json({
+        erro: 'Acesso permitido somente para administradores.'
+    });
+}
+
+
         req.usuario = decoded;
 
         next();

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:frontend/services/api_service.dart';
+import 'meus_eventos_screen.dart';
 import 'cadastro_evento_screen.dart';
 import 'convidados_screen.dart';
 import 'gerenciar_evento_screen.dart';
@@ -21,7 +22,11 @@ class HomeScreen extends StatefulWidget {
 }
 
 class _HomeScreenState extends State<HomeScreen> {
-  Map<String, dynamic>? evento;
+  List<dynamic> eventos = [];
+
+  Map<String, dynamic>? eventoSelecionado;
+
+  bool carregandoEventos = true;
 
   static const Color roxoEscuro = Color(0xFF21002E);
   static const Color roxo = Color(0xFF48005C);
@@ -36,24 +41,101 @@ class _HomeScreenState extends State<HomeScreen> {
     carregarEvento();
   }
 
-  Future<void> carregarEvento() async {
-    try {
-      final dados = await ApiService.buscarEventoUsuario(widget.usuarioId);
+  // ============================================================
+  // CARREGAR EVENTOS DO ADMINISTRADOR
+  // ============================================================
 
-      if (!mounted) return;
-
+  Future<void> carregarEvento({bool selecionarMaisRecente = false}) async {
+    if (mounted) {
       setState(() {
-        evento = dados;
-      });
-    } catch (e) {
-      debugPrint('Erro ao carregar evento: $e');
-
-      if (!mounted) return;
-
-      setState(() {
-        evento = {};
+        carregandoEventos = true;
       });
     }
+
+    try {
+      final dados = await ApiService.buscarEventoUsuario();
+
+      if (!mounted) return;
+
+      setState(() {
+        eventos = dados;
+
+        if (selecionarMaisRecente) {
+          // Após cadastrar um evento, seleciona o mais recente.
+          // A API deve retornar os eventos em ordem decrescente.
+          eventoSelecionado = eventos.isNotEmpty
+              ? Map<String, dynamic>.from(eventos.first)
+              : null;
+        } else {
+          // Mantém o evento selecionado quando ele ainda existe.
+          if (eventoSelecionado != null) {
+            final idAtual = eventoSelecionado!['evento_id'];
+
+            final eventosEncontrados = eventos.where(
+              (item) => item['evento_id'].toString() == idAtual.toString(),
+            );
+
+            if (eventosEncontrados.isNotEmpty) {
+              eventoSelecionado = Map<String, dynamic>.from(
+                eventosEncontrados.first,
+              );
+            } else {
+              eventoSelecionado = null;
+            }
+          }
+
+          // Se ainda não existe seleção, seleciona o primeiro evento.
+          if (eventoSelecionado == null && eventos.isNotEmpty) {
+            eventoSelecionado = Map<String, dynamic>.from(eventos.first);
+          }
+        }
+
+        carregandoEventos = false;
+      });
+    } catch (e) {
+      debugPrint('Erro ao carregar eventos: $e');
+
+      if (!mounted) return;
+
+      setState(() {
+        eventos = [];
+        eventoSelecionado = null;
+        carregandoEventos = false;
+      });
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Não foi possível carregar os eventos: $e'),
+          backgroundColor: Colors.red,
+        ),
+      );
+    }
+  }
+
+  // ============================================================
+  // SELECIONAR EVENTO
+  // ============================================================
+
+  void selecionarEvento(Map<String, dynamic> evento) {
+    setState(() {
+      eventoSelecionado = evento;
+    });
+  }
+
+  Future<void> abrirMeusEventos() async {
+    final resultado = await Navigator.push<Map<String, dynamic>>(
+      context,
+      MaterialPageRoute(
+        builder: (_) => MeusEventosScreen(
+          usuarioId: widget.usuarioId,
+          eventoAtual: eventoSelecionado,
+        ),
+      ),
+    );
+
+    if (!mounted || resultado == null) return;
+
+    selecionarEvento(resultado);
   }
 
   Future<void> confirmarSaida() async {
@@ -61,35 +143,26 @@ class _HomeScreenState extends State<HomeScreen> {
       context: context,
       builder: (context) => AlertDialog(
         backgroundColor: const Color(0xFF30003D),
-
         title: const Text(
           'Encerrar sessão',
           style: TextStyle(color: Colors.white),
         ),
-
         content: const Text(
           'Deseja realmente sair da sessão?',
           style: TextStyle(color: Colors.white70),
         ),
-
         actionsAlignment: MainAxisAlignment.center,
-
         actions: [
           TextButton(
-            onPressed: () {
-              Navigator.pop(context, false);
-            },
+            onPressed: () => Navigator.pop(context, false),
             child: const Text('Cancelar', style: TextStyle(color: rosa)),
           ),
-
           ElevatedButton(
             style: ElevatedButton.styleFrom(
               backgroundColor: magenta,
               foregroundColor: Colors.white,
             ),
-            onPressed: () {
-              Navigator.pop(context, true);
-            },
+            onPressed: () => Navigator.pop(context, true),
             child: const Text('Sair'),
           ),
         ],
@@ -97,6 +170,8 @@ class _HomeScreenState extends State<HomeScreen> {
     );
 
     if (sair == true && mounted) {
+      ApiService.token = null;
+
       Navigator.pushAndRemoveUntil(
         context,
         MaterialPageRoute(builder: (_) => const LoginScreen()),
@@ -112,14 +187,11 @@ class _HomeScreenState extends State<HomeScreen> {
   }) {
     return Container(
       margin: const EdgeInsets.only(bottom: 7),
-
       padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 11),
-
       decoration: BoxDecoration(
         color: const Color(0xFFF9E3FA),
         borderRadius: BorderRadius.circular(30),
       ),
-
       child: Row(
         children: [
           Icon(icone, color: roxo, size: 27),
@@ -136,19 +208,15 @@ class _HomeScreenState extends State<HomeScreen> {
           Flexible(
             child: Container(
               constraints: const BoxConstraints(minWidth: 45),
-
               padding: const EdgeInsets.symmetric(horizontal: 13, vertical: 8),
-
               decoration: BoxDecoration(
                 color: const Color(0xFFF1C9F5),
                 borderRadius: BorderRadius.circular(25),
               ),
-
               child: Text(
                 valor,
                 textAlign: TextAlign.center,
                 overflow: TextOverflow.ellipsis,
-
                 style: const TextStyle(
                   color: roxoEscuro,
                   fontWeight: FontWeight.bold,
@@ -162,24 +230,27 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
+  // ============================================================
+  // CARD DO EVENTO SELECIONADO
+  // ============================================================
+
   Widget cardEvento() {
-    final tipoEvento = evento?['tipo_evento']?.toString() ?? '';
+    final evento = eventoSelecionado!;
 
-    final codigoEvento = evento?['codigo_evento']?.toString() ?? '';
+    final tipoEvento = evento['tipo_evento']?.toString() ?? 'Evento';
 
-    final quantidade = evento?['quantidade_convidados']?.toString() ?? '-';
+    final codigoEvento = evento['codigo_evento']?.toString() ?? '-';
 
-    final dataEvento = evento?['data_evento']?.toString() ?? '-';
+    final quantidade = evento['quantidade_convidados']?.toString() ?? '-';
+
+    final dataEvento = evento['data_evento']?.toString() ?? '-';
 
     return Container(
       width: double.infinity,
-
       padding: const EdgeInsets.all(20),
-
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(30),
-
         boxShadow: [
           BoxShadow(
             color: magenta.withValues(alpha: 0.13),
@@ -188,7 +259,6 @@ class _HomeScreenState extends State<HomeScreen> {
           ),
         ],
       ),
-
       child: Column(
         children: [
           Row(
@@ -196,12 +266,10 @@ class _HomeScreenState extends State<HomeScreen> {
               Container(
                 width: 72,
                 height: 72,
-
                 decoration: BoxDecoration(
                   color: lilas,
                   borderRadius: BorderRadius.circular(25),
                 ),
-
                 child: const Icon(
                   Icons.calendar_month_outlined,
                   size: 42,
@@ -218,11 +286,9 @@ class _HomeScreenState extends State<HomeScreen> {
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
-
                   children: [
                     Text(
                       tipoEvento,
-
                       style: const TextStyle(
                         color: textoEscuro,
                         fontSize: 21,
@@ -234,7 +300,6 @@ class _HomeScreenState extends State<HomeScreen> {
 
                     const Text(
                       'Detalhes do seu evento',
-
                       style: TextStyle(color: textoEscuro, fontSize: 14),
                     ),
                   ],
@@ -246,15 +311,12 @@ class _HomeScreenState extends State<HomeScreen> {
                   horizontal: 10,
                   vertical: 9,
                 ),
-
                 decoration: BoxDecoration(
                   color: lilas,
                   borderRadius: BorderRadius.circular(25),
                 ),
-
                 child: const Row(
                   mainAxisSize: MainAxisSize.min,
-
                   children: [
                     Icon(Icons.circle, color: Color(0xFF20D52D), size: 12),
 
@@ -262,7 +324,6 @@ class _HomeScreenState extends State<HomeScreen> {
 
                     Text(
                       'Ativo',
-
                       style: TextStyle(
                         color: Colors.black87,
                         fontWeight: FontWeight.bold,
@@ -299,21 +360,45 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
+  // ============================================================
+  // BOTÃO MEUS EVENTOS
+  // ============================================================
+
+  Widget seletorEventos() {
+    return Container(
+      width: double.infinity,
+      margin: const EdgeInsets.only(bottom: 20),
+      child: ElevatedButton.icon(
+        onPressed: abrirMeusEventos,
+        icon: const Icon(Icons.event_available),
+        label: const Text('Meus Eventos'),
+        style: ElevatedButton.styleFrom(
+          backgroundColor: magenta,
+          foregroundColor: Colors.white,
+          padding: const EdgeInsets.symmetric(vertical: 17),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(18),
+          ),
+        ),
+      ),
+    );
+  }
+
+  // ============================================================
+  // ÍCONE DOS MENUS
+  // ============================================================
+
   Widget iconeMenu(IconData icone) {
     return Container(
       width: 75,
       height: 75,
-
       decoration: BoxDecoration(
         gradient: const LinearGradient(
           colors: [Color(0xFFFF3AD4), Color(0xFFD500C2)],
-
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
         ),
-
         borderRadius: BorderRadius.circular(24),
-
         boxShadow: [
           BoxShadow(
             color: magenta.withValues(alpha: 0.25),
@@ -322,10 +407,13 @@ class _HomeScreenState extends State<HomeScreen> {
           ),
         ],
       ),
-
       child: Icon(icone, color: Colors.white, size: 40),
     );
   }
+
+  // ============================================================
+  // CARD DOS MENUS
+  // ============================================================
 
   Widget menuCard({
     required IconData icone,
@@ -337,19 +425,14 @@ class _HomeScreenState extends State<HomeScreen> {
     return Material(
       color: Colors.white,
       borderRadius: BorderRadius.circular(30),
-
       child: InkWell(
         onTap: onTap,
         borderRadius: BorderRadius.circular(30),
-
         child: Container(
           width: double.infinity,
-
           padding: const EdgeInsets.all(18),
-
           decoration: BoxDecoration(
             borderRadius: BorderRadius.circular(30),
-
             boxShadow: [
               BoxShadow(
                 color: magenta.withValues(alpha: 0.10),
@@ -358,7 +441,6 @@ class _HomeScreenState extends State<HomeScreen> {
               ),
             ],
           ),
-
           child: larguraTotal
               ? Row(
                   children: [
@@ -369,11 +451,9 @@ class _HomeScreenState extends State<HomeScreen> {
                     Expanded(
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
-
                         children: [
                           Text(
                             titulo,
-
                             style: const TextStyle(
                               color: textoEscuro,
                               fontSize: 20,
@@ -385,7 +465,6 @@ class _HomeScreenState extends State<HomeScreen> {
 
                           Text(
                             descricao,
-
                             style: const TextStyle(
                               color: textoEscuro,
                               fontSize: 14,
@@ -400,7 +479,6 @@ class _HomeScreenState extends State<HomeScreen> {
                 )
               : Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
-
                   children: [
                     Row(
                       children: [
@@ -416,7 +494,6 @@ class _HomeScreenState extends State<HomeScreen> {
 
                     Text(
                       titulo,
-
                       style: const TextStyle(
                         color: textoEscuro,
                         fontSize: 18,
@@ -428,7 +505,6 @@ class _HomeScreenState extends State<HomeScreen> {
 
                     Text(
                       descricao,
-
                       style: const TextStyle(
                         color: textoEscuro,
                         fontSize: 14,
@@ -442,23 +518,23 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
+  // ============================================================
+  // CABEÇALHO
+  // ============================================================
+
   Widget cabecalho() {
     return Container(
       width: double.infinity,
-
       padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 12),
-
       decoration: const BoxDecoration(
         gradient: LinearGradient(
           colors: [Color(0xFFD900C7), Color(0xFF78008E), Color(0xFFD900C7)],
         ),
       ),
-
       child: Row(
         children: [
           IconButton(
             onPressed: confirmarSaida,
-
             icon: const Icon(Icons.arrow_back, color: Colors.white, size: 30),
           ),
 
@@ -470,7 +546,6 @@ class _HomeScreenState extends State<HomeScreen> {
 
           const Text(
             'MOMENTZ',
-
             style: TextStyle(
               color: Colors.white,
               fontSize: 25,
@@ -487,6 +562,10 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
+  // ============================================================
+  // SAUDAÇÃO
+  // ============================================================
+
   Widget saudacao() {
     final nome = widget.nomeUsuario.trim();
 
@@ -494,21 +573,17 @@ class _HomeScreenState extends State<HomeScreen> {
 
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 25),
-
       child: Row(
         children: [
           Container(
             width: 85,
             height: 85,
-
             decoration: BoxDecoration(
               gradient: const LinearGradient(
                 colors: [Color(0xFFFF35D4), Color(0xFFB000B9)],
               ),
-
               borderRadius: BorderRadius.circular(27),
             ),
-
             child: const Icon(
               Icons.celebration_outlined,
               color: Colors.white,
@@ -521,11 +596,9 @@ class _HomeScreenState extends State<HomeScreen> {
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
-
               children: [
                 Text(
                   'Olá, $primeiroNome!',
-
                   style: const TextStyle(
                     color: Colors.white,
                     fontSize: 29,
@@ -537,7 +610,6 @@ class _HomeScreenState extends State<HomeScreen> {
 
                 const Text(
                   'Bem-vindo ao MOMENTZ ✨',
-
                   style: TextStyle(color: Colors.white, fontSize: 17),
                 ),
               ],
@@ -548,26 +620,40 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
+  // ============================================================
+  // MENU RESPONSIVO
+  // ============================================================
+
   Widget menuResponsivo() {
+    if (eventoSelecionado == null) {
+      return const SizedBox.shrink();
+    }
+
+    final eventoId = int.parse(eventoSelecionado!['evento_id'].toString());
+
     return LayoutBuilder(
       builder: (context, constraints) {
-        // Duas colunas somente quando houver espaço suficiente.
-
         final bool duasColunas = constraints.maxWidth >= 600;
 
         final cardGerenciar = menuCard(
           icone: Icons.settings_outlined,
           titulo: 'Gerenciar Evento',
           descricao: 'Edite as informações do seu evento',
-
-          onTap: () {
-            Navigator.push(
+          onTap: () async {
+            final resultado = await Navigator.push<Map<String, dynamic>>(
               context,
               MaterialPageRoute(
-                builder: (_) =>
-                    GerenciarEventoScreen(eventoId: evento!['evento_id']),
+                builder: (_) => GerenciarEventoScreen(
+                  eventoId: eventoId,
+                  usuarioId: widget.usuarioId,
+                  eventoAtual: Map<String, dynamic>.from(eventoSelecionado!),
+                ),
               ),
             );
+
+            if (!mounted || resultado == null) return;
+
+            selecionarEvento(resultado);
           },
         );
 
@@ -575,13 +661,11 @@ class _HomeScreenState extends State<HomeScreen> {
           icone: Icons.people_outline,
           titulo: 'Convidados',
           descricao: 'Cadastre e gerencie os convidados',
-
           onTap: () {
             Navigator.push(
               context,
               MaterialPageRoute(
-                builder: (_) =>
-                    ConvidadosScreen(eventoId: evento!['evento_id']),
+                builder: (_) => ConvidadosScreen(eventoId: eventoId),
               ),
             );
           },
@@ -591,14 +675,12 @@ class _HomeScreenState extends State<HomeScreen> {
           icone: Icons.card_giftcard,
           titulo: 'Presentes',
           descricao: 'Crie sua lista e receba os presentes',
-
           larguraTotal: true,
-
           onTap: () {
             Navigator.push(
               context,
               MaterialPageRoute(
-                builder: (_) => PresentesScreen(eventoId: evento!['evento_id']),
+                builder: (_) => PresentesScreen(eventoId: eventoId),
               ),
             );
           },
@@ -609,7 +691,6 @@ class _HomeScreenState extends State<HomeScreen> {
             children: [
               Row(
                 crossAxisAlignment: CrossAxisAlignment.start,
-
                 children: [
                   Expanded(child: cardGerenciar),
 
@@ -643,17 +724,19 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
+  // ============================================================
+  // BOTÃO CADASTRAR EVENTO
+  // ============================================================
+
   Widget botaoCadastrarEvento() {
     return Center(
       child: ConstrainedBox(
         constraints: const BoxConstraints(maxWidth: 400),
-
         child: SizedBox(
           width: double.infinity,
-
-          child: ElevatedButton(
+          child: ElevatedButton.icon(
             onPressed: () async {
-              await Navigator.push(
+              final resultado = await Navigator.push<bool>(
                 context,
                 MaterialPageRoute(
                   builder: (_) =>
@@ -661,23 +744,23 @@ class _HomeScreenState extends State<HomeScreen> {
                 ),
               );
 
-              await carregarEvento();
-            },
+              if (!mounted) return;
 
+              if (resultado == true) {
+                await carregarEvento(selecionarMaisRecente: true);
+              }
+            },
             style: ElevatedButton.styleFrom(
               backgroundColor: magenta,
               foregroundColor: Colors.white,
-
               padding: const EdgeInsets.symmetric(vertical: 20),
-
               shape: RoundedRectangleBorder(
                 borderRadius: BorderRadius.circular(20),
               ),
             ),
-
-            child: const Text(
-              'Cadastrar Evento',
-
+            icon: const Icon(Icons.add_circle_outline),
+            label: const Text(
+              'Adicionar evento',
               style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
             ),
           ),
@@ -686,20 +769,100 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
+  // ============================================================
+  // CONTEÚDO PRINCIPAL
+  // ============================================================
+
+  Widget conteudoPrincipal() {
+    if (carregandoEventos) {
+      return const Center(
+        child: Padding(
+          padding: EdgeInsets.all(35),
+          child: CircularProgressIndicator(color: rosa),
+        ),
+      );
+    }
+
+    // ----------------------------------------------------------
+    // NENHUM EVENTO CADASTRADO
+    // ----------------------------------------------------------
+
+    if (eventos.isEmpty) {
+      return Column(
+        children: [
+          const SizedBox(height: 20),
+
+          const Icon(
+            Icons.event_available_outlined,
+            color: Colors.white,
+            size: 75,
+          ),
+
+          const SizedBox(height: 15),
+
+          const Text(
+            'Você ainda não possui eventos cadastrados.',
+            textAlign: TextAlign.center,
+            style: TextStyle(color: Colors.white, fontSize: 17),
+          ),
+
+          const SizedBox(height: 25),
+
+          botaoCadastrarEvento(),
+        ],
+      );
+    }
+
+    // ----------------------------------------------------------
+    // EVENTOS CADASTRADOS
+    // ----------------------------------------------------------
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const Text(
+          'Meu evento selecionado',
+          style: TextStyle(
+            color: Colors.white,
+            fontSize: 20,
+            fontWeight: FontWeight.bold,
+          ),
+        ),
+
+        const SizedBox(height: 12),
+
+        seletorEventos(),
+
+        if (eventoSelecionado != null) ...[
+          cardEvento(),
+
+          const SizedBox(height: 25),
+
+          menuResponsivo(),
+        ],
+
+        const SizedBox(height: 20),
+
+        botaoCadastrarEvento(),
+      ],
+    );
+  }
+
+  // ============================================================
+  // BUILD
+  // ============================================================
+
   @override
   Widget build(BuildContext context) {
     return PopScope(
       canPop: false,
-
       onPopInvokedWithResult: (didPop, result) async {
         if (didPop) return;
 
         await confirmarSaida();
       },
-
       child: Scaffold(
         backgroundColor: roxoEscuro,
-
         body: LayoutBuilder(
           builder: (context, constraints) {
             final bool isWeb = constraints.maxWidth >= 700;
@@ -711,12 +874,10 @@ class _HomeScreenState extends State<HomeScreen> {
             return Container(
               width: double.infinity,
               height: double.infinity,
-
               decoration: const BoxDecoration(
                 gradient: LinearGradient(
                   begin: Alignment.topLeft,
                   end: Alignment.bottomRight,
-
                   colors: [
                     Color(0xFF160020),
                     Color(0xFF30003D),
@@ -724,17 +885,13 @@ class _HomeScreenState extends State<HomeScreen> {
                   ],
                 ),
               ),
-
               child: Center(
                 child: Container(
                   width: panelWidth,
                   height: constraints.maxHeight,
-
                   clipBehavior: Clip.antiAlias,
-
                   decoration: BoxDecoration(
                     borderRadius: BorderRadius.circular(isWeb ? 18 : 0),
-
                     boxShadow: isWeb
                         ? [
                             BoxShadow(
@@ -745,18 +902,13 @@ class _HomeScreenState extends State<HomeScreen> {
                           ]
                         : [],
                   ),
-
                   child: Stack(
                     fit: StackFit.expand,
-
                     children: [
                       Image.asset(
                         'assets/images/fundo_home.png',
-
                         fit: BoxFit.cover,
-
                         alignment: Alignment.center,
-
                         errorBuilder: (_, __, ___) {
                           return Container(color: roxoEscuro);
                         },
@@ -772,53 +924,23 @@ class _HomeScreenState extends State<HomeScreen> {
                             Expanded(
                               child: SingleChildScrollView(
                                 physics: const BouncingScrollPhysics(),
-
                                 child: Center(
                                   child: ConstrainedBox(
                                     constraints: const BoxConstraints(
                                       maxWidth: 950,
                                     ),
-
                                     child: Padding(
                                       padding: const EdgeInsets.symmetric(
                                         horizontal: 22,
                                         vertical: 10,
                                       ),
-
                                       child: Column(
                                         crossAxisAlignment:
                                             CrossAxisAlignment.start,
-
                                         children: [
                                           saudacao(),
 
-                                          if (evento == null)
-                                            const Center(
-                                              child: Padding(
-                                                padding: EdgeInsets.all(35),
-
-                                                child:
-                                                    CircularProgressIndicator(
-                                                      color: rosa,
-                                                    ),
-                                              ),
-                                            ),
-
-                                          if (evento != null &&
-                                              evento!.isNotEmpty) ...[
-                                            cardEvento(),
-
-                                            const SizedBox(height: 25),
-
-                                            menuResponsivo(),
-                                          ],
-
-                                          if (evento != null &&
-                                              evento!.isEmpty) ...[
-                                            const SizedBox(height: 20),
-
-                                            botaoCadastrarEvento(),
-                                          ],
+                                          conteudoPrincipal(),
 
                                           const SizedBox(height: 60),
                                         ],

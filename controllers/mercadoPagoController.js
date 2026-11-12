@@ -411,8 +411,71 @@ const verificarConexaoMercadoPago = async (req, res) => {
 
 
 
+const validarContaMercadoPago = async (usuarioId) => {
+    const sql = `
+        SELECT access_token_enc, mp_user_id
+        FROM mercadopago_conexao
+        WHERE usuario_id = ?
+        LIMIT 1
+    `;
+
+    const resultados = await consultarBanco(sql, [usuarioId]);
+
+    if (resultados.length === 0) {
+        return {
+            valida: false,
+            motivo: 'NAO_CONECTADA'
+        };
+    }
+
+    const conexaoMP = resultados[0];
+
+    const accessToken = descriptografarToken(
+        conexaoMP.access_token_enc
+    );
+
+    const resposta = await fetch(
+        'https://api.mercadopago.com/users/me',
+        {
+            method: 'GET',
+            headers: {
+                Authorization: `Bearer ${accessToken}`,
+                'Content-Type': 'application/json'
+            },
+            signal: AbortSignal.timeout(15000)
+        }
+    );
+
+    if (resposta.status === 401 || resposta.status === 403) {
+        return {
+            valida: false,
+            motivo: 'REAUTORIZACAO'
+        };
+    }
+
+    if (!resposta.ok) {
+        throw new Error(
+            `Falha na validação Mercado Pago: ${resposta.status}`
+        );
+    }
+
+    const dados = await resposta.json();
+
+    if (String(dados.id) !== String(conexaoMP.mp_user_id)) {
+        throw new Error(
+            'A conta retornada não corresponde à conexão registrada.'
+        );
+    }
+
+    return {
+        valida: true
+    };
+};
+
+
 module.exports = {
     conectarMercadoPago,
     callbackMercadoPago,
-    verificarConexaoMercadoPago
+    verificarConexaoMercadoPago,
+    validarContaMercadoPago
 };

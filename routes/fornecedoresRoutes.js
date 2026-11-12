@@ -1,16 +1,15 @@
-const express = require( 'express');
-
+const express = require("express");
 const router = express.Router();
 
 const {
-    cadastrarFornecedor,
-    listarFornecedores,
-    listarFornecedoresEvento
-} = require('../controllers/fornecedoresController');
+  cadastrarFornecedor,
+  listarFornecedoresEvento,
+} = require("../controllers/fornecedoresController");
 
-router.post('/', cadastrarFornecedor);
+const authAdminMiddleware = require("../middlewares/authAdminMiddleware");
 
-router.get('/', listarFornecedores);
-router.get('/evento/:eventoId', listarFornecedoresEvento);
+router.post("/", authAdminMiddleware, cadastrarFornecedor);
+
+router.get("/evento/:eventoId", authAdminMiddleware, listarFornecedoresEvento);
 
 module.exports = router;

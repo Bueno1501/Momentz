@@ -61,14 +61,14 @@ router.get(
 
 
 router.post(
-    '/admin/upload',
+    '/admin/:eventoId/upload',
     authMiddleware,
     uploadAdministrador.array('fotos', 20),
     uploadFotosAdministrador
 );
 
 router.get(
-    '/admin/evento',
+    '/admin/evento/:eventoId',
     authMiddleware,
     listarFotosAdministrador
 );

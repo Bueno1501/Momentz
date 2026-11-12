@@ -16,6 +16,9 @@ class OrcamentoScreen extends StatefulWidget {
 class _OrcamentoScreenState extends State<OrcamentoScreen> {
   Map<String, dynamic> dados = {};
 
+  bool carregando = true;
+  String? erro;
+
   final orcamentoController = TextEditingController();
 
   final valorFormatter = CurrencyTextInputFormatter.currency(
@@ -31,23 +34,48 @@ class _OrcamentoScreenState extends State<OrcamentoScreen> {
   }
 
   @override
+  void didUpdateWidget(covariant OrcamentoScreen oldWidget) {
+    super.didUpdateWidget(oldWidget);
+
+    if (oldWidget.eventoId != widget.eventoId) {
+      dados = {};
+      carregarOrcamento();
+    }
+  }
+
+  @override
   void dispose() {
     orcamentoController.dispose();
     super.dispose();
   }
 
-  Future carregarOrcamento() async {
-    final resultado = await ApiService.buscarOrcamento(widget.eventoId);
-
-    if (!mounted) return;
-
+  Future<void> carregarOrcamento() async {
     setState(() {
-      dados = resultado;
-
-      if (dados.isNotEmpty) {
-        orcamentoController.text = dados['orcamento_total'].toString();
-      }
+      carregando = true;
+      erro = null;
     });
+
+    try {
+      final resultado = await ApiService.buscarOrcamento(widget.eventoId);
+
+      if (!mounted) return;
+
+      setState(() {
+        dados = resultado;
+        carregando = false;
+
+        if (dados.isNotEmpty) {
+          orcamentoController.text = dados['orcamento_total'].toString();
+        }
+      });
+    } catch (e) {
+      if (!mounted) return;
+
+      setState(() {
+        carregando = false;
+        erro = e.toString();
+      });
+    }
   }
 
   Future alterarOrcamento() async {
@@ -137,18 +165,30 @@ class _OrcamentoScreenState extends State<OrcamentoScreen> {
 
     editarController.dispose();
 
-    await ApiService.atualizarOrcamento(
-      eventoId: widget.eventoId,
-      orcamento: novoValor,
-    );
+    try {
+      await ApiService.atualizarOrcamento(
+        eventoId: widget.eventoId,
+        orcamento: novoValor,
+      );
 
-    await carregarOrcamento();
+      await carregarOrcamento();
 
-    if (!mounted) return;
+      if (!mounted) return;
 
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Orçamento atualizado com sucesso!')),
-    );
+      if (erro != null) {
+        throw Exception(erro);
+      }
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Orçamento atualizado com sucesso!')),
+      );
+    } catch (e) {
+      if (!mounted) return;
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Erro ao atualizar orçamento: $e')),
+      );
+    }
   }
 
   @override
@@ -163,10 +203,44 @@ class _OrcamentoScreenState extends State<OrcamentoScreen> {
 
     final formatoMoeda = NumberFormat.currency(locale: 'pt_BR', symbol: 'R\$');
 
-    if (dados.isEmpty) {
+    if (carregando) {
       return const Scaffold(
         backgroundColor: Color(0xFF21002E),
         body: Center(child: CircularProgressIndicator(color: Colors.white)),
+      );
+    }
+
+    if (erro != null) {
+      return Scaffold(
+        backgroundColor: const Color(0xFF21002E),
+        body: Center(
+          child: Padding(
+            padding: const EdgeInsets.all(24),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const Icon(Icons.error_outline, color: Colors.white, size: 50),
+                const SizedBox(height: 15),
+                const Text(
+                  'Não foi possível carregar o orçamento.',
+                  style: TextStyle(color: Colors.white),
+                  textAlign: TextAlign.center,
+                ),
+                const SizedBox(height: 10),
+                Text(
+                  erro!,
+                  style: const TextStyle(color: Colors.white70),
+                  textAlign: TextAlign.center,
+                ),
+                const SizedBox(height: 20),
+                ElevatedButton(
+                  onPressed: carregarOrcamento,
+                  child: const Text('Tentar novamente'),
+                ),
+              ],
+            ),
+          ),
+        ),
       );
     }
 

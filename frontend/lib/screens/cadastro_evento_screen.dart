@@ -88,7 +88,7 @@ class _CadastroEventoScreenState extends State<CadastroEventoScreen> {
           TextButton(
             onPressed: () {
               Navigator.pop(context);
-              Navigator.pop(context);
+              Navigator.pop(context, true);
             },
             child: const Text('OK!'),
           ),

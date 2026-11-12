@@ -1,5 +1,5 @@
-const express = require('express');
 
+const express = require('express');
 const router = express.Router();
 
 const {
@@ -7,7 +7,10 @@ const {
     atualizarOrcamento
 } = require('../controllers/orcamentoController');
 
-router.get('/:eventoId', buscarOrcamento);
-router.put('/:eventoId', atualizarOrcamento);
+const authAdminMiddleware = require('../middlewares/authAdminMiddleware');
+
+router.get('/:eventoId', authAdminMiddleware, buscarOrcamento);
+
+router.put('/:eventoId', authAdminMiddleware, atualizarOrcamento);
 
 module.exports = router;

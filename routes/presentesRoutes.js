@@ -1,16 +1,36 @@
-const express = require('express');
 
+const express = require('express');
 const router = express.Router();
+
+const authMiddleware = require('../middlewares/authMiddleware');
+const authConvidadoMiddleware = require('../middlewares/authConvidadoMiddleware');
 
 const {
     cadastrarPresente,
-    listarPresentes,
-    listarPresentesEvento
+    listarPresentesEvento,
+    listarPresentesConvidado,
+    editarPresente,
+    excluirPresente
 } = require('../controllers/presentesController');
 
-router.post('/', cadastrarPresente);
+// Administrador
+router.post('/', authMiddleware, cadastrarPresente);
 
-router.get('/', listarPresentes);
-router.get('/evento/:eventoId', listarPresentesEvento);
+router.get(
+    '/evento/:eventoId',
+    authMiddleware,
+    listarPresentesEvento
+);
+
+router.put('/:presenteId', authMiddleware, editarPresente);
+
+router.delete('/:presenteId', authMiddleware, excluirPresente);
+
+// Convidado
+router.get(
+    '/convidado',
+    authConvidadoMiddleware,
+    listarPresentesConvidado
+);
 
 module.exports = router;

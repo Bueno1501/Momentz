@@ -31,7 +31,7 @@ class _GaleriaScreenState extends State<GaleriaScreen> {
     }
 
     try {
-      final lista = await ApiService.buscarFotosAdministrador();
+      final lista = await ApiService.buscarFotosAdministrador(widget.eventoId);
 
       if (!mounted) return;
 
@@ -96,6 +96,7 @@ class _GaleriaScreenState extends State<GaleriaScreen> {
       final resposta = await ApiService.uploadFotosAdministrador(
         arquivosBytes: arquivosBytes,
         nomesArquivos: nomesArquivos,
+        eventoId: widget.eventoId,
       );
 
       await carregarFotos();
@@ -147,46 +148,112 @@ class _GaleriaScreenState extends State<GaleriaScreen> {
 
     if (urlFoto.isEmpty) return;
 
+    final nomeConvidado = foto['nome_convidado']?.toString();
+
+    final enviadoPor = foto['convidado_id'] == null
+        ? 'Administrador'
+        : (nomeConvidado != null && nomeConvidado.isNotEmpty
+              ? nomeConvidado
+              : 'Convidado');
+
     showDialog(
       context: context,
-      builder: (context) => Dialog(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            SizedBox(
-              height: 500,
-              child: InteractiveViewer(
-                child: Image.network(
-                  urlFoto,
-                  fit: BoxFit.contain,
-                  errorBuilder: (context, error, stackTrace) {
-                    return const Center(
-                      child: Icon(Icons.broken_image, size: 50),
-                    );
-                  },
-                ),
-              ),
-            ),
-            const Divider(),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+      builder: (context) {
+        final alturaTela = MediaQuery.of(context).size.height;
+
+        return Dialog(
+          child: SizedBox(
+            width: 600,
+            height: alturaTela * 0.78,
+            child: Column(
               children: [
-                TextButton.icon(
-                  onPressed: () => baixarFoto(urlFoto),
-                  icon: const Icon(Icons.download),
-                  label: const Text('Baixar'),
+                // IMAGEM
+                Expanded(
+                  child: Padding(
+                    padding: const EdgeInsets.all(8),
+                    child: InteractiveViewer(
+                      child: Image.network(
+                        urlFoto,
+                        fit: BoxFit.contain,
+                        width: double.infinity,
+                        errorBuilder: (context, error, stackTrace) {
+                          return const Center(
+                            child: Icon(Icons.broken_image, size: 50),
+                          );
+                        },
+                      ),
+                    ),
+                  ),
                 ),
-                TextButton.icon(
-                  onPressed: () => Navigator.pop(context),
-                  icon: const Icon(Icons.close),
-                  label: const Text('Fechar'),
+
+                const Divider(height: 1),
+
+                // INFORMAÇÕES DO REMETENTE
+                Padding(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 20,
+                    vertical: 12,
+                  ),
+                  child: Row(
+                    children: [
+                      const Icon(
+                        Icons.person_outline,
+                        color: Colors.purple,
+                        size: 28,
+                      ),
+                      const SizedBox(width: 10),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            const Text(
+                              'Foto enviada por',
+                              style: TextStyle(
+                                fontSize: 12,
+                                color: Colors.grey,
+                              ),
+                            ),
+                            Text(
+                              enviadoPor,
+                              style: const TextStyle(
+                                fontSize: 16,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+
+                const Divider(height: 1),
+
+                // BOTÕES
+                Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 8),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                    children: [
+                      TextButton.icon(
+                        onPressed: () => baixarFoto(urlFoto),
+                        icon: const Icon(Icons.download),
+                        label: const Text('Baixar'),
+                      ),
+                      TextButton.icon(
+                        onPressed: () => Navigator.pop(context),
+                        icon: const Icon(Icons.close),
+                        label: const Text('Fechar'),
+                      ),
+                    ],
+                  ),
                 ),
               ],
             ),
-            const SizedBox(height: 10),
-          ],
-        ),
-      ),
+          ),
+        );
+      },
     );
   }
 

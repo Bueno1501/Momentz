@@ -1,13 +1,22 @@
 import 'package:flutter/material.dart';
 import 'package:frontend/widgets/page_container.dart';
+
 import 'fornecedores_screen.dart';
 import 'galeria_screen.dart';
 import 'orcamento_screen.dart';
+import 'meus_eventos_screen.dart';
 
 class GerenciarEventoScreen extends StatelessWidget {
   final int eventoId;
+  final int usuarioId;
+  final Map<String, dynamic> eventoAtual;
 
-  const GerenciarEventoScreen({super.key, required this.eventoId});
+  const GerenciarEventoScreen({
+    super.key,
+    required this.eventoId,
+    required this.usuarioId,
+    required this.eventoAtual,
+  });
 
   static const Color roxoEscuro = Color(0xFF21002E);
   static const Color roxoMedio = Color(0xFF49105F);
@@ -86,6 +95,25 @@ class GerenciarEventoScreen extends StatelessWidget {
         ),
       ),
     );
+  }
+
+  // ============================================================
+  // ABRIR MEUS EVENTOS
+  // ============================================================
+
+  Future<void> abrirMeusEventos(BuildContext context) async {
+    final resultado = await Navigator.push<Map<String, dynamic>>(
+      context,
+      MaterialPageRoute(
+        builder: (_) =>
+            MeusEventosScreen(usuarioId: usuarioId, eventoAtual: eventoAtual),
+      ),
+    );
+
+    if (!context.mounted || resultado == null) return;
+
+    // Devolve o evento selecionado para a Home.
+    Navigator.pop(context, resultado);
   }
 
   @override
@@ -177,16 +205,9 @@ class GerenciarEventoScreen extends StatelessWidget {
                   context: context,
                   icone: Icons.calendar_month_rounded,
                   titulo: 'Meus Eventos',
-                  descricao: 'Visualize e acompanhe os detalhes do seu evento.',
-                  onTap: () {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(
-                        content: Text(
-                          'A funcionalidade Meus Eventos será implementada.',
-                        ),
-                      ),
-                    );
-                  },
+                  descricao:
+                      'Visualize e acompanhe os detalhes dos seus eventos.',
+                  onTap: () => abrirMeusEventos(context),
                 ),
 
                 const SizedBox(height: 16),
@@ -201,8 +222,7 @@ class GerenciarEventoScreen extends StatelessWidget {
                     Navigator.push(
                       context,
                       MaterialPageRoute(
-                        builder: (context) =>
-                            FornecedoresScreen(eventoId: eventoId),
+                        builder: (_) => FornecedoresScreen(eventoId: eventoId),
                       ),
                     );
                   },
@@ -219,7 +239,7 @@ class GerenciarEventoScreen extends StatelessWidget {
                     Navigator.push(
                       context,
                       MaterialPageRoute(
-                        builder: (context) => GaleriaScreen(eventoId: eventoId),
+                        builder: (_) => GaleriaScreen(eventoId: eventoId),
                       ),
                     );
                   },
@@ -237,8 +257,7 @@ class GerenciarEventoScreen extends StatelessWidget {
                     Navigator.push(
                       context,
                       MaterialPageRoute(
-                        builder: (context) =>
-                            OrcamentoScreen(eventoId: eventoId),
+                        builder: (_) => OrcamentoScreen(eventoId: eventoId),
                       ),
                     );
                   },

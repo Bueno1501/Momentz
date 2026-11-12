@@ -5,38 +5,68 @@ const crypto = require("crypto");
 const { enviarCodigoVerificacao } = require("../services/emailServices");
 
 const cadastrarConvidado = (req, res) => {
-  const { nome, email, telefone, evento_id, usuario_id } = req.body;
+  const { nome, email, telefone, evento_id } = req.body;
+  const usuarioId = req.usuario.usuario_id;
+
+  if (!nome || !email || !evento_id) {
+    return res.status(400).json({
+      erro: "Informe nome, e-mail e evento.",
+    });
+  }
+
+  if (!Number.isInteger(Number(evento_id)) || Number(evento_id) <= 0) {
+    return res.status(400).json({
+      erro: "Evento inválido.",
+    });
+  }
 
   const tokenConvite = crypto.randomBytes(32).toString("hex");
 
+  // O INSERT só acontece se o evento pertencer ao administrador.
   const sql = `
-        INSERT INTO convidado
-    (
-         nome,
-         email, 
-         telefone,
-         evento_id, 
-         usuario_id, 
-         status_confirmacao,
-         token_convite
-    )
-        VALUES (?, ?, ?, ?, ?, 'PENDENTE', ?)
+        INSERT INTO convidado (
+            nome,
+            email,
+            telefone,
+            evento_id,
+            usuario_id,
+            status_confirmacao,
+            token_convite
+        )
+        SELECT ?, ?, ?, evento.evento_id, evento.usuario_id,
+               'PENDENTE', ?
+        FROM evento
+        WHERE evento.evento_id = ?
+          AND evento.usuario_id = ?
     `;
 
   conexao.query(
     sql,
-    [nome, email, telefone, evento_id, usuario_id || null, tokenConvite],
+    [
+      nome.trim(),
+      email.trim().toLowerCase(),
+      telefone || null,
+      tokenConvite,
+      evento_id,
+      usuarioId,
+    ],
     (erro, resultado) => {
       if (erro) {
-        console.log(erro);
+        console.error(erro);
 
         return res.status(500).json({
-          erro: "Erro ao Cadastrar convidado",
+          erro: "Erro ao cadastrar convidado.",
         });
       }
 
-      res.status(201).json({
-        mensagem: "Convidado cadastrado com sucesso",
+      if (resultado.affectedRows === 0) {
+        return res.status(404).json({
+          erro: "Evento não encontrado ou não pertence a este administrador.",
+        });
+      }
+
+      return res.status(201).json({
+        mensagem: "Convidado cadastrado com sucesso.",
         convidado_id: resultado.insertId,
       });
     },
@@ -89,69 +119,133 @@ const buscarConvitePorToken = (req, res) => {
 
 const listarConvidadosPorEvento = (req, res) => {
   const { eventoId } = req.params;
+  const usuarioId = req.usuario.usuario_id;
 
   const sql = `
-        SELECT * FROM
-        convidado WHERE evento_id = ?
-         ORDER BY nome
-        `;
+        SELECT convidado.*
+        FROM convidado
+        INNER JOIN evento
+            ON convidado.evento_id = evento.evento_id
+        WHERE evento.evento_id = ?
+          AND evento.usuario_id = ?
+        ORDER BY convidado.nome
+    `;
 
-  conexao.query(sql, [eventoId], (erro, resultado) => {
+  conexao.query(sql, [eventoId, usuarioId], (erro, resultado) => {
     if (erro) {
-      console.log(erro);
+      console.error(erro);
 
       return res.status(500).json({
-        erro: "Erro ao Buscar convidados",
+        erro: "Erro ao buscar convidados.",
       });
     }
-    res.status(200).json(resultado);
+
+    return res.status(200).json(resultado);
   });
 };
 
 const alterarStatusConvidados = (req, res) => {
   const { convidadoId } = req.params;
   const { status_confirmacao } = req.body;
+  const usuarioId = req.usuario.usuario_id;
+
+  const statusValidos = ["CONFIRMADO", "PENDENTE", "RECUSADO"];
+
+  if (!statusValidos.includes(status_confirmacao)) {
+    return res.status(400).json({
+      erro: "Status de confirmação inválido.",
+    });
+  }
 
   const sql = `
-            UPDATE convidado SET
-            status_confirmacao = ?
-            WHERE convidado_id =?
-        `;
+        UPDATE convidado
+        INNER JOIN evento
+            ON convidado.evento_id = evento.evento_id
+        SET convidado.status_confirmacao = ?
+        WHERE convidado.convidado_id = ?
+          AND evento.usuario_id = ?
+    `;
 
-  conexao.query(sql, [status_confirmacao, convidadoId], (erro, resultado) => {
-    if (erro) {
-      console.log(erro);
+  conexao.query(
+    sql,
+    [status_confirmacao, convidadoId, usuarioId],
+    (erro, resultado) => {
+      if (erro) {
+        console.error(erro);
 
-      return res.status(500).json({
-        erro: "Erro ao atualizar status",
+        return res.status(500).json({
+          erro: "Erro ao atualizar status.",
+        });
+      }
+
+      if (resultado.affectedRows === 0) {
+        return conexao.query(
+          `SELECT convidado.convidado_id
+                     FROM convidado
+                     INNER JOIN evento
+                        ON convidado.evento_id = evento.evento_id
+                     WHERE convidado.convidado_id = ?
+                       AND evento.usuario_id = ?`,
+          [convidadoId, usuarioId],
+          (erroBusca, convidados) => {
+            if (erroBusca) {
+              console.error(erroBusca);
+
+              return res.status(500).json({
+                erro: "Erro ao verificar convidado.",
+              });
+            }
+
+            if (convidados.length === 0) {
+              return res.status(404).json({
+                erro: "Convidado não encontrado ou não pertence aos seus eventos.",
+              });
+            }
+
+            return res.status(200).json({
+              mensagem: "O convidado já estava com esse status.",
+            });
+          },
+        );
+      }
+
+      return res.status(200).json({
+        mensagem: "Status atualizado com sucesso.",
       });
-    }
-
-    return res.status(200).json({
-      mensagem: "Status atualizado com sucesso ",
-    });
-  });
+    },
+  );
 };
 
 const excluirConvidado = (req, res) => {
   const { convidadoId } = req.params;
+  const usuarioId = req.usuario.usuario_id;
 
   const sql = `
-            DELETE FROM convidado 
-            WHERE convidado_id = ?
-        `;
+        DELETE convidado
+        FROM convidado
+        INNER JOIN evento
+            ON convidado.evento_id = evento.evento_id
+        WHERE convidado.convidado_id = ?
+          AND evento.usuario_id = ?
+    `;
 
-  conexao.query(sql, [convidadoId], (erro, resultado) => {
+  conexao.query(sql, [convidadoId, usuarioId], (erro, resultado) => {
     if (erro) {
-      console.log(erro);
+      console.error(erro);
 
       return res.status(500).json({
-        erro: "Erro ao excluir convidado",
+        erro: "Erro ao excluir convidado.",
+      });
+    }
+
+    if (resultado.affectedRows === 0) {
+      return res.status(404).json({
+        erro: "Convidado não encontrado ou não pertence aos seus eventos.",
       });
     }
 
     return res.status(200).json({
-      mensagem: "Convidado excluido com sucesso",
+      mensagem: "Convidado excluído com sucesso.",
     });
   });
 };
@@ -837,22 +931,21 @@ const validarCodigoConvidado = (req, res) => {
   });
 };
 
-
 const renovarSessaoConvidado = (req, res) => {
-    const { refresh_token } = req.body;
+  const { refresh_token } = req.body;
 
-    if (!refresh_token || typeof refresh_token !== 'string') {
-        return res.status(400).json({
-            erro: 'Refresh token não informado.'
-        });
-    }
+  if (!refresh_token || typeof refresh_token !== "string") {
+    return res.status(400).json({
+      erro: "Refresh token não informado.",
+    });
+  }
 
-    const refreshTokenHash = crypto
-        .createHash('sha256')
-        .update(refresh_token)
-        .digest('hex');
+  const refreshTokenHash = crypto
+    .createHash("sha256")
+    .update(refresh_token)
+    .digest("hex");
 
-    const sqlBuscar = `
+  const sqlBuscar = `
         SELECT
             s.sessao_id,
             s.evento_id,
@@ -874,42 +967,42 @@ const renovarSessaoConvidado = (req, res) => {
         LIMIT 1
     `;
 
-    conexao.query(sqlBuscar, [refreshTokenHash], (erro, sessoes) => {
-        if (erro) {
-            console.error('Erro ao buscar sessão:', erro);
-            return res.status(500).json({
-                erro: 'Erro ao renovar sessão.'
-            });
-        }
+  conexao.query(sqlBuscar, [refreshTokenHash], (erro, sessoes) => {
+    if (erro) {
+      console.error("Erro ao buscar sessão:", erro);
+      return res.status(500).json({
+        erro: "Erro ao renovar sessão.",
+      });
+    }
 
-        if (sessoes.length === 0) {
-            return res.status(401).json({
-                erro: 'Sessão inválida ou expirada. Faça o acesso novamente.'
-            });
-        }
+    if (sessoes.length === 0) {
+      return res.status(401).json({
+        erro: "Sessão inválida ou expirada. Faça o acesso novamente.",
+      });
+    }
 
-        const sessao = sessoes[0];
+    const sessao = sessoes[0];
 
-        if (sessao.evento_encerrado === 1) {
-            return res.status(403).json({
-                erro: 'O prazo de acesso a este evento foi encerrado.'
-            });
-        }
+    if (sessao.evento_encerrado === 1) {
+      return res.status(403).json({
+        erro: "O prazo de acesso a este evento foi encerrado.",
+      });
+    }
 
-        const novoAccessToken = crypto.randomBytes(32).toString('hex');
-        const novoRefreshToken = crypto.randomBytes(32).toString('hex');
+    const novoAccessToken = crypto.randomBytes(32).toString("hex");
+    const novoRefreshToken = crypto.randomBytes(32).toString("hex");
 
-        const novoAccessHash = crypto
-            .createHash('sha256')
-            .update(novoAccessToken)
-            .digest('hex');
+    const novoAccessHash = crypto
+      .createHash("sha256")
+      .update(novoAccessToken)
+      .digest("hex");
 
-        const novoRefreshHash = crypto
-            .createHash('sha256')
-            .update(novoRefreshToken)
-            .digest('hex');
+    const novoRefreshHash = crypto
+      .createHash("sha256")
+      .update(novoRefreshToken)
+      .digest("hex");
 
-        const sqlAtualizar = `
+    const sqlAtualizar = `
             UPDATE convidado_sessao
             SET
                 access_token_hash = ?,
@@ -922,83 +1015,77 @@ const renovarSessaoConvidado = (req, res) => {
               AND refresh_expira_em > NOW()
         `;
 
-        conexao.query(
-            sqlAtualizar,
-            [
-                novoAccessHash,
-                novoRefreshHash,
-                sessao.sessao_id,
-                refreshTokenHash
-            ],
-            (erroAtualizar, resultado) => {
-                if (erroAtualizar) {
-                    console.error('Erro ao atualizar sessão:', erroAtualizar);
-                    return res.status(500).json({
-                        erro: 'Não foi possível renovar a sessão.'
-                    });
-                }
+    conexao.query(
+      sqlAtualizar,
+      [novoAccessHash, novoRefreshHash, sessao.sessao_id, refreshTokenHash],
+      (erroAtualizar, resultado) => {
+        if (erroAtualizar) {
+          console.error("Erro ao atualizar sessão:", erroAtualizar);
+          return res.status(500).json({
+            erro: "Não foi possível renovar a sessão.",
+          });
+        }
 
-                if (resultado.affectedRows === 0) {
-                    return res.status(401).json({
-                        erro: 'Refresh token inválido ou já utilizado.'
-                    });
-                }
+        if (resultado.affectedRows === 0) {
+          return res.status(401).json({
+            erro: "Refresh token inválido ou já utilizado.",
+          });
+        }
 
-                return res.status(200).json({
-                    mensagem: 'Sessão renovada com sucesso.',
-                    sessao: {
-                        access_token: novoAccessToken,
-                        refresh_token: novoRefreshToken,
-                        token_type: 'Bearer',
-                        expires_in: 900,
-                        refresh_expires_in: 2592000
-                    }
-                });
-            }
-        );
-    });
+        return res.status(200).json({
+          mensagem: "Sessão renovada com sucesso.",
+          sessao: {
+            access_token: novoAccessToken,
+            refresh_token: novoRefreshToken,
+            token_type: "Bearer",
+            expires_in: 900,
+            refresh_expires_in: 2592000,
+          },
+        });
+      },
+    );
+  });
 };
 
-
 const logoutConvidado = (req, res) => {
-    const { refresh_token } = req.body;
+  const { refresh_token } = req.body;
 
-    if (!refresh_token || typeof refresh_token !== 'string') {
-        return res.status(400).json({
-            erro: 'Refresh token não informado.'
-        });
-    }
+  if (!refresh_token || typeof refresh_token !== "string") {
+    return res.status(400).json({
+      erro: "Refresh token não informado.",
+    });
+  }
 
-    const refreshTokenHash = crypto
-        .createHash('sha256')
-        .update(refresh_token)
-        .digest('hex');
+  const refreshTokenHash = crypto
+    .createHash("sha256")
+    .update(refresh_token)
+    .digest("hex");
 
-    const sql = `
+  const sql = `
         UPDATE convidado_sessao
         SET revogado_em = NOW()
         WHERE refresh_token_hash = ?
           AND revogado_em IS NULL
     `;
 
-    conexao.query(sql, [refreshTokenHash], (erro, resultado) => {
-        if (erro) {
-            console.error('Erro ao encerrar sessão:', erro);
-            return res.status(500).json({
-                erro: 'Erro ao encerrar sessão.'
-            });
-        }
+  conexao.query(sql, [refreshTokenHash], (erro, resultado) => {
+    if (erro) {
+      console.error("Erro ao encerrar sessão:", erro);
+      return res.status(500).json({
+        erro: "Erro ao encerrar sessão.",
+      });
+    }
 
-        if (resultado.affectedRows === 0) {
-            return res.status(401).json({
-                erro: 'Sessão não encontrada ou já encerrada.'
-            });
-        }
+    if (resultado.affectedRows === 0) {
+      return res.status(401).json({
+        erro: "Sessão não encontrada ou já encerrada.",
+      });
+    }
 
-        return res.status(200).json({
-            mensagem: 'Sessão encerrada com sucesso.'
-        });
+    return res.status(200).json({
+      mensagem: "Sessão encerrada com sucesso.",
     });
+  });
 };
 
 module.exports = {
@@ -1012,5 +1099,5 @@ module.exports = {
   enviarCodigoConvidado,
   validarCodigoConvidado,
   renovarSessaoConvidado,
-  logoutConvidado
+  logoutConvidado,
 };

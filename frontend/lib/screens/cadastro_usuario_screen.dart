@@ -213,19 +213,25 @@ class _CadastroUsuarioScreenState extends State<CadastroUsuarioScreen> {
 
       showDialog(
         context: context,
-        builder: (context) => AlertDialog(
-          title: const Text('Sucesso'),
+        barrierDismissible: false,
+        builder: (dialogContext) => AlertDialog(
+          title: const Text('Cadastro realizado!'),
           content: Text(
             resposta['mensagem']?.toString() ??
-                'Cadastro realizado com sucesso.',
+                'Sua conta foi criada com sucesso. Faça login para continuar.',
           ),
           actions: [
             TextButton(
               onPressed: () {
-                Navigator.pop(context);
-                Navigator.pop(context);
+                Navigator.pop(dialogContext);
+
+                Navigator.pushAndRemoveUntil(
+                  context,
+                  MaterialPageRoute(builder: (_) => const LoginScreen()),
+                  (route) => false,
+                );
               },
-              child: const Text('OK'),
+              child: const Text('Ir para o login'),
             ),
           ],
         ),
