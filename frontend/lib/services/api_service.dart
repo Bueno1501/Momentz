@@ -1,8 +1,9 @@
 import 'dart:convert';
-import 'package:http/http.dart' as http;
 import 'dart:typed_data';
-import 'package:http_parser/http_parser.dart';
+
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
+import 'package:http/http.dart' as http;
+import 'package:http_parser/http_parser.dart';
 
 class ApiService {
   static const String baseUrl = 'https://momentz-production.up.railway.app';
@@ -16,6 +17,10 @@ class ApiService {
   static const String _guestIdKey = 'guest_id';
   static const String _guestEventIdKey = 'guest_event_id';
   static const String _guestEmailKey = 'guest_email';
+
+  // ============================================================
+  // IDENTIFICAR O TIPO DE IMAGEM
+  // ============================================================
 
   static MediaType? _tipoImagem(String nomeArquivo) {
     final extensao = nomeArquivo.split('.').last.toLowerCase();
@@ -40,6 +45,10 @@ class ApiService {
         return null;
     }
   }
+
+  // ============================================================
+  // FORNECEDORES
+  // ============================================================
 
   static Future cadastrarFornecedor({
     required String nome,
@@ -78,6 +87,25 @@ class ApiService {
     throw Exception(dados['erro'] ?? 'Erro ao cadastrar fornecedor.');
   }
 
+  static Future<List<dynamic>> buscarFornecedores(int eventoId) async {
+    final response = await http.get(
+      Uri.parse('$baseUrl/fornecedores/evento/$eventoId'),
+      headers: {'Authorization': 'Bearer $token'},
+    );
+
+    final dados = jsonDecode(response.body);
+
+    if (response.statusCode == 200) {
+      return List<dynamic>.from(dados);
+    }
+
+    throw Exception(dados['erro'] ?? 'Erro ao buscar fornecedores.');
+  }
+
+  // ============================================================
+  // USUÁRIOS
+  // ============================================================
+
   static Future cadastrarUsuario({
     required String nome,
     required String email,
@@ -97,6 +125,31 @@ class ApiService {
 
     return jsonDecode(response.body);
   }
+
+  // ============================================================
+  // LOGIN
+  // ============================================================
+
+  static Future login({required String email, required String senha}) async {
+    final response = await http.post(
+      Uri.parse('$baseUrl/usuarios/login'),
+      headers: {'Content-Type': 'application/json'},
+      body: jsonEncode({'email': email, 'senha': senha}),
+    );
+
+    final dados = jsonDecode(response.body);
+
+    if (response.statusCode == 200) {
+      token = dados['token'];
+      return dados;
+    }
+
+    return {'erro': dados['erro'] ?? 'E-mail ou senha inválidos.'};
+  }
+
+  // ============================================================
+  // CADASTRAR EVENTO
+  // ============================================================
 
   static Future<Map<String, dynamic>> cadastrarEvento({
     required String tipoEvento,
@@ -135,49 +188,9 @@ class ApiService {
     throw Exception(dados['erro'] ?? 'Não foi possível cadastrar o evento.');
   }
 
-  static Future login({required String email, required String senha}) async {
-    final response = await http.post(
-      Uri.parse('$baseUrl/usuarios/login'),
-      headers: {'Content-Type': 'application/json'},
-      body: jsonEncode({'email': email, 'senha': senha}),
-    );
-
-    final dados = jsonDecode(response.body);
-
-    if (response.statusCode == 200) {
-      token = dados['token'];
-      return dados;
-    }
-
-    return {'erro': dados['erro'] ?? 'E-mail ou senha inválidos.'};
-  }
-
-  static Future cadastrarConvidado({
-    required String nome,
-    required String email,
-    required int eventoId,
-  }) async {
-    final response = await http.post(
-      Uri.parse('$baseUrl/convidados'),
-      headers: {'Content-Type': 'application/json'},
-      body: jsonEncode({'nome': nome, 'email': email, 'evento_id': eventoId}),
-    );
-
-    return jsonDecode(response.body);
-  }
-
-  static Future<List<dynamic>> buscarConvidados(int eventoId) async {
-    final response = await http.get(
-      Uri.parse('$baseUrl/convidados/evento/$eventoId'),
-      headers: {'Authorization': 'Bearer $token'},
-    );
-
-    if (response.statusCode == 200) {
-      return jsonDecode(response.body);
-    }
-
-    return [];
-  }
+  // ============================================================
+  // BUSCAR EVENTOS DO ADMINISTRADOR
+  // ============================================================
 
   static Future<List<dynamic>> buscarEventoUsuario() async {
     final response = await http.get(
@@ -190,9 +203,14 @@ class ApiService {
     }
 
     throw Exception(
-      'Erro ao buscar eventos: ${response.statusCode} - ${response.body}',
+      'Erro ao buscar eventos: '
+      '${response.statusCode} - ${response.body}',
     );
   }
+
+  // ============================================================
+  // BUSCAR EVENTO POR ID
+  // ============================================================
 
   static Future<Map<String, dynamic>> buscarEventoPorId(int eventoId) async {
     final response = await http.get(
@@ -205,45 +223,112 @@ class ApiService {
     }
 
     throw Exception(
-      'Não foi possível buscar o evento: ${response.statusCode} - ${response.body}',
+      'Não foi possível buscar o evento: '
+      '${response.statusCode} - ${response.body}',
     );
   }
 
-  static Future alterarStatusConvidado({
+  // ============================================================
+  // TRATAMENTO DAS RESPOSTAS DOS CONVIDADOS
+  // ============================================================
+
+  static dynamic _respostaConvidado(http.Response response) {
+    dynamic dados;
+
+    try {
+      dados = jsonDecode(response.body);
+    } catch (_) {
+      throw Exception(
+        'Resposta inválida do servidor '
+        '(${response.statusCode}).',
+      );
+    }
+
+    if (response.statusCode < 200 || response.statusCode >= 300) {
+      final mensagem = dados is Map
+          ? dados['erro'] ?? 'Erro HTTP ${response.statusCode}'
+          : 'Erro HTTP ${response.statusCode}';
+
+      throw Exception(mensagem);
+    }
+
+    return dados;
+  }
+
+  // ============================================================
+  // CADASTRAR CONVIDADO - ADMINISTRADOR
+  // ============================================================
+
+  static Future<Map<String, dynamic>> cadastrarConvidado({
+    required String nome,
+    required String email,
+    required int eventoId,
+  }) async {
+    final response = await http.post(
+      Uri.parse('$baseUrl/convidados'),
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': 'Bearer $token',
+      },
+      body: jsonEncode({
+        'nome': nome.trim(),
+        'email': email.trim().toLowerCase(),
+        'evento_id': eventoId,
+      }),
+    );
+
+    return Map<String, dynamic>.from(_respostaConvidado(response));
+  }
+
+  // ============================================================
+  // LISTAR CONVIDADOS DO EVENTO
+  // ============================================================
+
+  static Future<List<dynamic>> buscarConvidados(int eventoId) async {
+    final response = await http.get(
+      Uri.parse('$baseUrl/convidados/evento/$eventoId'),
+      headers: {'Authorization': 'Bearer $token'},
+    );
+
+    return List<dynamic>.from(_respostaConvidado(response));
+  }
+
+  // ============================================================
+  // ALTERAR STATUS DO CONVIDADO
+  // ============================================================
+
+  static Future<Map<String, dynamic>> alterarStatusConvidado({
     required int convidadoId,
     required String status,
   }) async {
     final response = await http.put(
       Uri.parse('$baseUrl/convidados/$convidadoId/status'),
-      headers: {'Content-Type': 'application/json'},
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': 'Bearer $token',
+      },
       body: jsonEncode({'status_confirmacao': status}),
     );
 
-    return jsonDecode(response.body);
+    return Map<String, dynamic>.from(_respostaConvidado(response));
   }
 
-  static Future excluirConvidado(int convidadoId) async {
+  // ============================================================
+  // EXCLUIR CONVIDADO
+  // ============================================================
+
+  static Future<Map<String, dynamic>> excluirConvidado(int convidadoId) async {
     final response = await http.delete(
       Uri.parse('$baseUrl/convidados/$convidadoId'),
-    );
-
-    return jsonDecode(response.body);
-  }
-
-  static Future<List<dynamic>> buscarFornecedores(int eventoId) async {
-    final response = await http.get(
-      Uri.parse('$baseUrl/fornecedores/evento/$eventoId'),
       headers: {'Authorization': 'Bearer $token'},
     );
 
-    final dados = jsonDecode(response.body);
-
-    if (response.statusCode == 200) {
-      return List<dynamic>.from(dados);
-    }
-
-    throw Exception(dados['erro'] ?? 'Erro ao buscar fornecedores.');
+    return Map<String, dynamic>.from(_respostaConvidado(response));
   }
+
+  // ============================================================
+  // MERCADO PAGO
+  // ============================================================
 
   static Future<Map<String, dynamic>> verificarStatusMercadoPago() async {
     final response = await http.get(
@@ -261,6 +346,10 @@ class ApiService {
       dados['erro'] ?? 'Não foi possível verificar o Mercado Pago.',
     );
   }
+
+  // ============================================================
+  // CADASTRAR PRESENTE
+  // ============================================================
 
   static Future<Map<String, dynamic>> cadastrarPresente({
     required String nomePresente,
@@ -304,7 +393,8 @@ class ApiService {
     }
 
     throw Exception(
-      'Erro ao buscar presentes: ${response.statusCode} - ${response.body}',
+      'Erro ao buscar presentes: '
+      '${response.statusCode} - ${response.body}',
     );
   }
 
@@ -362,7 +452,8 @@ class ApiService {
     throw Exception(
       dados is Map
           ? dados['erro'] ?? 'Erro ao buscar fotos.'
-          : 'Erro ao buscar fotos: ${response.statusCode}',
+          : 'Erro ao buscar fotos: '
+                '${response.statusCode}',
     );
   }
 
@@ -386,7 +477,10 @@ class ApiService {
       accessToken = await renovarSessaoConvidado();
 
       if (accessToken == null || accessToken.isEmpty) {
-        throw Exception('Sua sessão expirou. Acesse o evento novamente.');
+        throw Exception(
+          'Sua sessão expirou. '
+          'Acesse o evento novamente.',
+        );
       }
 
       response = await consultar(accessToken);
@@ -410,7 +504,8 @@ class ApiService {
 
     final mensagem = dados is Map
         ? dados['erro'] ?? 'Não foi possível buscar os presentes.'
-        : 'Erro ao buscar presentes: ${response.statusCode}';
+        : 'Erro ao buscar presentes: '
+              '${response.statusCode}';
 
     throw Exception(mensagem);
   }
@@ -431,7 +526,10 @@ class ApiService {
       accessToken = await renovarSessaoConvidado();
 
       if (accessToken == null) {
-        throw Exception('Sua sessão expirou. Acesse o evento novamente.');
+        throw Exception(
+          'Sua sessão expirou. '
+          'Acesse o evento novamente.',
+        );
       }
 
       response = await http.get(
@@ -445,7 +543,8 @@ class ApiService {
     }
 
     throw Exception(
-      'Erro ao buscar suas fotos: ${response.statusCode} - ${response.body}',
+      'Erro ao buscar suas fotos: '
+      '${response.statusCode} - ${response.body}',
     );
   }
 
@@ -495,7 +594,10 @@ class ApiService {
       accessToken = await renovarSessaoConvidado();
 
       if (accessToken == null) {
-        throw Exception('Sua sessão expirou. Acesse o evento novamente.');
+        throw Exception(
+          'Sua sessão expirou. '
+          'Acesse o evento novamente.',
+        );
       }
 
       response = await enviar(accessToken);
@@ -518,7 +620,8 @@ class ApiService {
     throw Exception(
       dados is Map
           ? dados['erro'] ?? 'Erro ao enviar fotos.'
-          : 'Erro ao enviar fotos: ${response.statusCode}',
+          : 'Erro ao enviar fotos: '
+                '${response.statusCode}',
     );
   }
 
@@ -550,6 +653,7 @@ class ApiService {
     }
 
     final response = await request.send();
+
     final resposta = await response.stream.bytesToString();
 
     final dados = jsonDecode(resposta);
@@ -561,7 +665,8 @@ class ApiService {
     throw Exception(
       dados is Map
           ? dados['erro'] ?? 'Erro ao enviar fotos.'
-          : 'Erro ao enviar fotos: ${response.statusCode}',
+          : 'Erro ao enviar fotos: '
+                '${response.statusCode}',
     );
   }
 
@@ -587,6 +692,7 @@ class ApiService {
     );
 
     final response = await request.send();
+
     final resposta = await response.stream.bytesToString();
 
     dynamic dados;
@@ -675,10 +781,6 @@ class ApiService {
     return Map<String, dynamic>.from(dados);
   }
 
-  // ============================================================
-  // VALIDAR CÓDIGO DO CONVIDADO
-  // ============================================================
-
   static Future<Map<String, dynamic>> validarCodigoConvidado({
     required String codigoEvento,
     required String email,
@@ -747,6 +849,7 @@ class ApiService {
     }
 
     final dados = jsonDecode(response.body);
+
     final sessao = Map<String, dynamic>.from(dados['sessao']);
 
     await _storage.write(key: _guestAccessKey, value: sessao['access_token']);
@@ -755,10 +858,6 @@ class ApiService {
 
     return sessao['access_token'];
   }
-
-  // ============================================================
-  // LOGOUT DO CONVIDADO
-  // ============================================================
 
   static Future<void> logoutConvidado() async {
     final refreshToken = await _storage.read(key: _guestRefreshKey);
@@ -778,9 +877,13 @@ class ApiService {
 
   static Future<void> limparSessaoConvidado() async {
     await _storage.delete(key: _guestAccessKey);
+
     await _storage.delete(key: _guestRefreshKey);
+
     await _storage.delete(key: _guestIdKey);
+
     await _storage.delete(key: _guestEventIdKey);
+
     await _storage.delete(key: _guestEmailKey);
   }
 }

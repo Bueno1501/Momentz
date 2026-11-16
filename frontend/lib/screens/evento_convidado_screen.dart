@@ -13,6 +13,27 @@ class EventoConvidadoScreen extends StatelessWidget {
   static const Color magenta = Color(0xFFE000B8);
   static const Color rosaClaro = Color(0xFFFCE4F8);
 
+  String _texto(dynamic valor) {
+    final texto = valor?.toString().trim() ?? '';
+    return texto.isEmpty ? '-' : texto;
+  }
+
+  String _formatarData(dynamic valor) {
+    final texto = valor?.toString().trim() ?? '';
+
+    if (texto.isEmpty) return '-';
+
+    final data = DateTime.tryParse(texto);
+
+    if (data == null) return texto;
+
+    final dia = data.day.toString().padLeft(2, '0');
+    final mes = data.month.toString().padLeft(2, '0');
+    final ano = data.year.toString();
+
+    return '$dia/$mes/$ano';
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -22,6 +43,7 @@ class EventoConvidadoScreen extends StatelessWidget {
           final bool desktop = constraints.maxWidth >= 800;
 
           return Stack(
+            fit: StackFit.expand,
             children: [
               Positioned.fill(
                 child: Image.asset(
@@ -32,17 +54,15 @@ class EventoConvidadoScreen extends StatelessWidget {
                   alignment: Alignment.center,
                 ),
               ),
-
               SafeArea(
                 child: Column(
                   children: [
-                    _cabecalho(context),
-
+                    _cabecalho(context, desktop),
                     Expanded(
                       child: SingleChildScrollView(
                         padding: EdgeInsets.symmetric(
-                          horizontal: desktop ? 40 : 18,
-                          vertical: 25,
+                          horizontal: desktop ? 40 : 14,
+                          vertical: desktop ? 30 : 20,
                         ),
                         child: Center(
                           child: ConstrainedBox(
@@ -50,15 +70,13 @@ class EventoConvidadoScreen extends StatelessWidget {
                             child: Column(
                               crossAxisAlignment: CrossAxisAlignment.stretch,
                               children: [
-                                _boasVindas(),
-
-                                const SizedBox(height: 28),
-
-                                _informacoesEvento(),
-
+                                _boasVindas(desktop),
+                                const SizedBox(height: 25),
+                                _informacoesEvento(desktop),
                                 const SizedBox(height: 25),
 
                                 _opcao(
+                                  desktop: desktop,
                                   icone: Icons.photo_library_outlined,
                                   titulo: 'Galeria',
                                   descricao:
@@ -77,6 +95,7 @@ class EventoConvidadoScreen extends StatelessWidget {
                                 const SizedBox(height: 16),
 
                                 _opcao(
+                                  desktop: desktop,
                                   icone: Icons.card_giftcard,
                                   titulo: 'Presentes',
                                   descricao: 'Confira os presentes do evento',
@@ -94,16 +113,15 @@ class EventoConvidadoScreen extends StatelessWidget {
                                 const SizedBox(height: 16),
 
                                 _opcao(
+                                  desktop: desktop,
                                   icone: Icons.add_circle_outline,
                                   titulo: 'Criar Evento',
                                   descricao:
                                       'Cadastre um novo evento no Momentz',
-
                                   onTap: () async {
                                     final bool?
                                     confirmou = await showDialog<bool>(
                                       context: context,
-
                                       builder: (dialogContext) => AlertDialog(
                                         backgroundColor: Colors.white,
                                         surfaceTintColor: Colors.white,
@@ -132,27 +150,17 @@ class EventoConvidadoScreen extends StatelessWidget {
                                         ),
                                         actionsAlignment:
                                             MainAxisAlignment.spaceEvenly,
-                                        actionsPadding:
-                                            const EdgeInsets.fromLTRB(
-                                              16,
-                                              0,
-                                              16,
-                                              18,
-                                            ),
                                         actions: [
                                           TextButton(
-                                            onPressed: () {
-                                              Navigator.pop(
-                                                dialogContext,
-                                                false,
-                                              );
-                                            },
+                                            onPressed: () => Navigator.pop(
+                                              dialogContext,
+                                              false,
+                                            ),
                                             child: const Text(
                                               'Cancelar',
                                               style: TextStyle(
                                                 color: roxo,
                                                 fontWeight: FontWeight.bold,
-                                                fontSize: 16,
                                               ),
                                             ),
                                           ),
@@ -160,30 +168,12 @@ class EventoConvidadoScreen extends StatelessWidget {
                                             style: ElevatedButton.styleFrom(
                                               backgroundColor: magenta,
                                               foregroundColor: Colors.white,
-                                              elevation: 3,
-                                              padding:
-                                                  const EdgeInsets.symmetric(
-                                                    horizontal: 32,
-                                                    vertical: 14,
-                                                  ),
-                                              shape: RoundedRectangleBorder(
-                                                borderRadius:
-                                                    BorderRadius.circular(15),
-                                              ),
                                             ),
-                                            onPressed: () {
-                                              Navigator.pop(
-                                                dialogContext,
-                                                true,
-                                              );
-                                            },
-                                            child: const Text(
-                                              'Sim',
-                                              style: TextStyle(
-                                                fontWeight: FontWeight.bold,
-                                                fontSize: 16,
-                                              ),
+                                            onPressed: () => Navigator.pop(
+                                              dialogContext,
+                                              true,
                                             ),
+                                            child: const Text('Sim'),
                                           ),
                                         ],
                                       ),
@@ -218,9 +208,9 @@ class EventoConvidadoScreen extends StatelessWidget {
     );
   }
 
-  Widget _cabecalho(BuildContext context) {
+  Widget _cabecalho(BuildContext context, bool desktop) {
     return Container(
-      height: 85,
+      height: desktop ? 85 : 68,
       width: double.infinity,
       decoration: const BoxDecoration(
         gradient: LinearGradient(
@@ -231,80 +221,80 @@ class EventoConvidadoScreen extends StatelessWidget {
         children: [
           IconButton(
             onPressed: () => Navigator.pop(context),
-            icon: const Icon(Icons.arrow_back, color: Colors.white, size: 35),
+            icon: Icon(
+              Icons.arrow_back,
+              color: Colors.white,
+              size: desktop ? 35 : 28,
+            ),
           ),
-
           const Spacer(),
-
-          const Icon(
+          Icon(
             Icons.photo_camera_outlined,
             color: Colors.white,
-            size: 48,
+            size: desktop ? 48 : 33,
           ),
-
-          const SizedBox(width: 12),
-
-          const Text(
+          const SizedBox(width: 9),
+          Text(
             'MOMENTZ',
             style: TextStyle(
               color: Colors.white,
-              fontSize: 30,
+              fontSize: desktop ? 30 : 23,
               fontWeight: FontWeight.bold,
               letterSpacing: 1,
             ),
           ),
-
           const Spacer(),
-
-          const SizedBox(width: 45),
+          const SizedBox(width: 48),
         ],
       ),
     );
   }
 
-  Widget _boasVindas() {
-    final String nomeAdministrador = (evento['nome_administrador'] ?? 'Evento')
-        .toString();
+  Widget _boasVindas(bool desktop) {
+    final nomeAdministrador = _texto(evento['nome_administrador'] ?? 'Evento');
 
     return Row(
       children: [
         Container(
-          height: 105,
-          width: 105,
+          height: desktop ? 105 : 72,
+          width: desktop ? 105 : 72,
           decoration: BoxDecoration(
             gradient: const LinearGradient(
               colors: [Color(0xFFFF35C9), Color(0xFFB000A8)],
             ),
-            borderRadius: BorderRadius.circular(28),
+            borderRadius: BorderRadius.circular(desktop ? 28 : 20),
           ),
-          child: const Icon(Icons.celebration, color: Colors.white, size: 55),
+          child: Icon(
+            Icons.celebration,
+            color: Colors.white,
+            size: desktop ? 55 : 38,
+          ),
         ),
-
-        const SizedBox(width: 20),
-
+        SizedBox(width: desktop ? 20 : 12),
         Expanded(
           child: Container(
-            padding: const EdgeInsets.only(left: 18),
+            padding: EdgeInsets.only(left: desktop ? 18 : 12),
             decoration: const BoxDecoration(
-              border: Border(left: BorderSide(color: magenta, width: 5)),
+              border: Border(left: BorderSide(color: magenta, width: 4)),
             ),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const Text(
+                Text(
                   'Bem-vindo ao evento de',
                   style: TextStyle(
                     color: Colors.white,
-                    fontSize: 22,
+                    fontSize: desktop ? 22 : 15,
                     fontWeight: FontWeight.bold,
                   ),
                 ),
-
+                const SizedBox(height: 5),
                 Text(
                   nomeAdministrador,
-                  style: const TextStyle(
+                  softWrap: true,
+                  style: TextStyle(
                     color: Colors.white,
-                    fontSize: 34,
+                    fontSize: desktop ? 34 : 23,
                     fontWeight: FontWeight.bold,
                   ),
                 ),
@@ -316,11 +306,11 @@ class EventoConvidadoScreen extends StatelessWidget {
     );
   }
 
-  Widget _informacoesEvento() {
-    final String tipo = (evento['tipo_evento'] ?? 'Evento').toString();
+  Widget _informacoesEvento(bool desktop) {
+    final tipo = _texto(evento['tipo_evento']);
 
     return Container(
-      padding: const EdgeInsets.all(22),
+      padding: EdgeInsets.all(desktop ? 22 : 14),
       decoration: BoxDecoration(
         color: Colors.white.withValues(alpha: 0.97),
         borderRadius: BorderRadius.circular(30),
@@ -329,48 +319,50 @@ class EventoConvidadoScreen extends StatelessWidget {
         children: [
           Row(
             children: [
-              _iconeInformacao(Icons.calendar_month),
-
-              const SizedBox(width: 18),
-
+              _iconeInformacao(Icons.calendar_month, desktop),
+              SizedBox(width: desktop ? 18 : 10),
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
                       tipo,
-                      style: const TextStyle(
+                      style: TextStyle(
                         color: roxoEscuro,
-                        fontSize: 25,
+                        fontSize: desktop ? 25 : 19,
                         fontWeight: FontWeight.bold,
                       ),
                     ),
-
-                    const Text(
+                    Text(
                       'Informações do evento',
-                      style: TextStyle(color: roxo, fontSize: 17),
+                      style: TextStyle(
+                        color: roxo,
+                        fontSize: desktop ? 17 : 13,
+                      ),
                     ),
                   ],
                 ),
               ),
-
+              const SizedBox(width: 5),
               Container(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 17,
-                  vertical: 10,
+                padding: EdgeInsets.symmetric(
+                  horizontal: desktop ? 17 : 10,
+                  vertical: desktop ? 10 : 7,
                 ),
                 decoration: BoxDecoration(
                   color: rosaClaro,
                   borderRadius: BorderRadius.circular(30),
                 ),
-                child: const Row(
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
                   children: [
-                    Icon(Icons.circle, color: Colors.green, size: 13),
-                    SizedBox(width: 8),
+                    const Icon(Icons.circle, color: Colors.green, size: 10),
+                    const SizedBox(width: 5),
                     Text(
                       'Ativo',
                       style: TextStyle(
                         color: roxoEscuro,
+                        fontSize: desktop ? 14 : 12,
                         fontWeight: FontWeight.bold,
                       ),
                     ),
@@ -380,100 +372,140 @@ class EventoConvidadoScreen extends StatelessWidget {
             ],
           ),
 
-          const SizedBox(height: 22),
+          const SizedBox(height: 20),
 
           _linhaInformacao(
             Icons.confirmation_number_outlined,
             'Código do evento',
             evento['codigo_evento'],
-          ),
-
-          _linhaInformacao(
-            Icons.people_outline,
-            'Quantidade de convidados',
-            evento['quantidade_convidados'],
+            desktop,
           ),
 
           _linhaInformacao(
             Icons.calendar_today_outlined,
             'Data do evento',
-            evento['data_evento'],
+            _formatarData(evento['data_evento']),
+            desktop,
           ),
 
           _linhaInformacao(
             Icons.location_on_outlined,
             'Local do evento',
             evento['local_evento'],
+            desktop,
           ),
 
           _linhaInformacao(
             Icons.map_outlined,
             'Cidade / Estado',
-            '${evento['cidade_evento'] ?? '-'} / '
-                '${evento['estado_evento'] ?? '-'}',
+            '${_texto(evento['cidade_evento'])} / '
+                '${_texto(evento['estado_evento'])}',
+            desktop,
           ),
         ],
       ),
     );
   }
 
-  Widget _iconeInformacao(IconData icone) {
+  Widget _iconeInformacao(IconData icone, bool desktop) {
     return Container(
-      height: 85,
-      width: 85,
+      height: desktop ? 85 : 58,
+      width: desktop ? 85 : 58,
       decoration: BoxDecoration(
         color: const Color(0xFFF7DDF5),
-        borderRadius: BorderRadius.circular(24),
+        borderRadius: BorderRadius.circular(desktop ? 24 : 17),
       ),
-      child: Icon(icone, color: roxo, size: 45),
+      child: Icon(icone, color: roxo, size: desktop ? 45 : 32),
     );
   }
 
-  Widget _linhaInformacao(IconData icone, String titulo, dynamic valor) {
+  Widget _linhaInformacao(
+    IconData icone,
+    String titulo,
+    dynamic valor,
+    bool desktop,
+  ) {
     return Container(
       margin: const EdgeInsets.only(bottom: 9),
-      padding: const EdgeInsets.symmetric(horizontal: 15, vertical: 12),
+      padding: EdgeInsets.symmetric(
+        horizontal: desktop ? 15 : 11,
+        vertical: 12,
+      ),
       decoration: BoxDecoration(
         color: const Color(0xFFF9E3F7),
-        borderRadius: BorderRadius.circular(30),
+        borderRadius: BorderRadius.circular(24),
       ),
-      child: Row(
-        children: [
-          Icon(icone, color: roxo, size: 27),
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          final compacto = constraints.maxWidth < 430;
 
-          const SizedBox(width: 15),
+          final iconeWidget = Icon(icone, color: roxo, size: desktop ? 27 : 23);
 
-          Expanded(
+          final tituloWidget = Text(
+            titulo,
+            style: TextStyle(color: roxoEscuro, fontSize: desktop ? 15 : 14),
+          );
+
+          final valorWidget = Container(
+            padding: const EdgeInsets.symmetric(horizontal: 13, vertical: 9),
+            decoration: BoxDecoration(
+              color: const Color(0xFFF0C6EB),
+              borderRadius: BorderRadius.circular(20),
+            ),
             child: Text(
-              titulo,
-              style: const TextStyle(color: roxoEscuro, fontSize: 15),
+              _texto(valor),
+              textAlign: TextAlign.center,
+              softWrap: true,
+              style: TextStyle(
+                color: roxoEscuro,
+                fontSize: desktop ? 14 : 13,
+                fontWeight: FontWeight.bold,
+              ),
             ),
-          ),
+          );
 
-          Flexible(
-            child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 15, vertical: 9),
-              decoration: BoxDecoration(
-                color: const Color(0xFFF0C6EB),
-                borderRadius: BorderRadius.circular(25),
-              ),
-              child: Text(
-                valor?.toString() ?? '-',
-                textAlign: TextAlign.center,
-                style: const TextStyle(
-                  color: roxoEscuro,
-                  fontSize: 14,
-                  fontWeight: FontWeight.bold,
+          if (compacto) {
+            return Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                iconeWidget,
+                const SizedBox(width: 10),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Padding(
+                        padding: const EdgeInsets.only(top: 3),
+                        child: tituloWidget,
+                      ),
+                      const SizedBox(height: 8),
+                      Align(
+                        alignment: Alignment.centerLeft,
+                        child: valorWidget,
+                      ),
+                    ],
+                  ),
                 ),
-              ),
-            ),
-          ),
-        ],
+              ],
+            );
+          }
+
+          return Row(
+            children: [
+              iconeWidget,
+              const SizedBox(width: 15),
+              Expanded(child: tituloWidget),
+              const SizedBox(width: 10),
+              Flexible(child: valorWidget),
+            ],
+          );
+        },
       ),
     );
   }
 
   Widget _opcao({
+    required bool desktop,
     required IconData icone,
     required String titulo,
     required String descricao,
@@ -485,8 +517,8 @@ class EventoConvidadoScreen extends StatelessWidget {
         onTap: onTap,
         borderRadius: BorderRadius.circular(28),
         child: Container(
-          constraints: const BoxConstraints(minHeight: 135),
-          padding: const EdgeInsets.all(18),
+          constraints: BoxConstraints(minHeight: desktop ? 135 : 105),
+          padding: EdgeInsets.all(desktop ? 18 : 12),
           decoration: BoxDecoration(
             color: Colors.white.withValues(alpha: 0.96),
             borderRadius: BorderRadius.circular(28),
@@ -494,58 +526,59 @@ class EventoConvidadoScreen extends StatelessWidget {
           child: Row(
             children: [
               Container(
-                height: 100,
-                width: 100,
+                height: desktop ? 100 : 65,
+                width: desktop ? 100 : 65,
                 decoration: BoxDecoration(
                   gradient: const LinearGradient(
                     colors: [Color(0xFFFF35C9), Color(0xFFB000A8)],
                   ),
-                  borderRadius: BorderRadius.circular(24),
+                  borderRadius: BorderRadius.circular(20),
                 ),
-                child: Icon(icone, color: Colors.white, size: 55),
+                child: Icon(
+                  icone,
+                  color: Colors.white,
+                  size: desktop ? 55 : 35,
+                ),
               ),
-
-              const SizedBox(width: 18),
-
-              Container(height: 85, width: 5, color: const Color(0xFFE96BD6)),
-
-              const SizedBox(width: 18),
-
+              SizedBox(width: desktop ? 18 : 10),
+              Container(
+                height: desktop ? 85 : 65,
+                width: 4,
+                color: const Color(0xFFE96BD6),
+              ),
+              SizedBox(width: desktop ? 18 : 10),
               Expanded(
                 child: Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
                       titulo,
-                      style: const TextStyle(
+                      style: TextStyle(
                         color: roxoEscuro,
-                        fontSize: 24,
+                        fontSize: desktop ? 24 : 19,
                         fontWeight: FontWeight.bold,
                       ),
                     ),
-
                     const SizedBox(height: 5),
-
                     Text(
                       descricao,
-                      style: const TextStyle(color: roxo, fontSize: 15),
+                      style: TextStyle(
+                        color: roxo,
+                        fontSize: desktop ? 15 : 13,
+                      ),
                     ),
                   ],
                 ),
               ),
-
-              const Icon(Icons.chevron_right, color: roxoEscuro, size: 38),
+              Icon(
+                Icons.chevron_right,
+                color: roxoEscuro,
+                size: desktop ? 38 : 25,
+              ),
             ],
           ),
         ),
       ),
     );
-  }
-
-  void _mensagem(BuildContext context, String mensagem) {
-    ScaffoldMessenger.of(
-      context,
-    ).showSnackBar(SnackBar(content: Text(mensagem), backgroundColor: roxo));
   }
 }

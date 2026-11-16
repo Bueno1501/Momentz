@@ -1,8 +1,120 @@
 import 'dart:convert';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:frontend/services/api_service.dart';
 import 'package:http/http.dart' as http;
+
+class TelefoneBrasileiroFormatter extends TextInputFormatter {
+  const TelefoneBrasileiroFormatter();
+
+  String _formatar(String numeros) {
+    if (numeros.isEmpty) return '';
+
+    final buffer = StringBuffer();
+
+    buffer.write('(');
+
+    if (numeros.length <= 2) {
+      buffer.write(numeros);
+      return buffer.toString();
+    }
+
+    buffer.write(numeros.substring(0, 2));
+    buffer.write(') ');
+
+    final restante = numeros.substring(2);
+
+    if (numeros.length == 11) {
+      buffer.write(restante.substring(0, 1));
+      buffer.write(' ');
+      buffer.write(restante.substring(1, 5));
+      buffer.write('-');
+      buffer.write(restante.substring(5));
+    } else if (numeros.length == 10) {
+      buffer.write(restante.substring(0, 4));
+      buffer.write('-');
+      buffer.write(restante.substring(4));
+    } else if (restante.length <= 4) {
+      buffer.write(restante);
+    } else if (restante.length <= 8) {
+      buffer.write(restante.substring(0, 4));
+      buffer.write('-');
+      buffer.write(restante.substring(4));
+    } else {
+      buffer.write(restante.substring(0, 1));
+      buffer.write(' ');
+      buffer.write(restante.substring(1, 5));
+      buffer.write('-');
+      buffer.write(restante.substring(5));
+    }
+
+    return buffer.toString();
+  }
+
+  @override
+  TextEditingValue formatEditUpdate(
+    TextEditingValue oldValue,
+    TextEditingValue newValue,
+  ) {
+    if (!newValue.composing.isCollapsed) {
+      return newValue;
+    }
+
+    final numeros = newValue.text
+        .replaceAll(RegExp(r'\D'), '')
+        .substring(
+          0,
+          newValue.text.replaceAll(RegExp(r'\D'), '').length > 11
+              ? 11
+              : newValue.text.replaceAll(RegExp(r'\D'), '').length,
+        );
+
+    final textoFormatado = _formatar(numeros);
+
+    // Mantém o cursor próximo à posição editada.
+    final posicaoOriginal = newValue.selection.extentOffset;
+
+    if (posicaoOriginal < 0) {
+      return TextEditingValue(
+        text: textoFormatado,
+        selection: TextSelection.collapsed(offset: textoFormatado.length),
+      );
+    }
+
+    final limite = posicaoOriginal.clamp(0, newValue.text.length);
+
+    final digitosAntesCursor = newValue.text
+        .substring(0, limite)
+        .replaceAll(RegExp(r'\D'), '')
+        .length
+        .clamp(0, numeros.length);
+
+    int novaPosicao = textoFormatado.length;
+
+    if (digitosAntesCursor == 0) {
+      novaPosicao = 0;
+    } else {
+      int encontrados = 0;
+
+      for (int i = 0; i < textoFormatado.length; i++) {
+        if (RegExp(r'\d').hasMatch(textoFormatado[i])) {
+          encontrados++;
+
+          if (encontrados == digitosAntesCursor) {
+            novaPosicao = i + 1;
+            break;
+          }
+        }
+      }
+    }
+
+    return TextEditingValue(
+      text: textoFormatado,
+      selection: TextSelection.collapsed(offset: novaPosicao),
+    );
+  }
+}
 
 class ConviteScreen extends StatefulWidget {
   final String token;
@@ -21,9 +133,9 @@ class _ConviteScreenState extends State<ConviteScreen> {
   final nomeController = TextEditingController();
   final emailController = TextEditingController();
   final telefoneController = TextEditingController();
-  final criancas03Controller = TextEditingController(text: '0');
-  final criancas47Controller = TextEditingController(text: '0');
-  final acompanhantes8Controller = TextEditingController(text: '0');
+  final criancas03Controller = TextEditingController();
+  final criancas47Controller = TextEditingController();
+  final acompanhantes8Controller = TextEditingController();
 
   bool enviando = false;
   @override
@@ -98,7 +210,7 @@ class _ConviteScreenState extends State<ConviteScreen> {
   Future<void> _responderConvite(String status) async {
     final nome = nomeController.text.trim();
     final email = emailController.text.trim();
-    final telefone = telefoneController.text.trim();
+    final telefone = telefoneController.text.replaceAll(RegExp(r'\D'), '');
 
     if (nome.isEmpty || email.isEmpty || telefone.isEmpty) {
       _mostrarAviso('Preencha nome, e-mail e telefone.');
@@ -110,9 +222,21 @@ class _ConviteScreenState extends State<ConviteScreen> {
       return;
     }
 
-    final criancas03 = int.tryParse(criancas03Controller.text);
-    final criancas47 = int.tryParse(criancas47Controller.text);
-    final acompanhantes8 = int.tryParse(acompanhantes8Controller.text);
+    final textoCriancas03 = criancas03Controller.text.trim();
+    final textoCriancas47 = criancas47Controller.text.trim();
+    final textoAcompanhantes8 = acompanhantes8Controller.text.trim();
+
+    final int? criancas03 = textoCriancas03.isEmpty
+        ? 0
+        : int.tryParse(textoCriancas03);
+
+    final int? criancas47 = textoCriancas47.isEmpty
+        ? 0
+        : int.tryParse(textoCriancas47);
+
+    final int? acompanhantes8 = textoAcompanhantes8.isEmpty
+        ? 0
+        : int.tryParse(textoAcompanhantes8);
 
     if (criancas03 == null ||
         criancas47 == null ||
@@ -370,8 +494,10 @@ class _ConviteScreenState extends State<ConviteScreen> {
                     TextField(
                       controller: telefoneController,
                       keyboardType: TextInputType.phone,
+                      inputFormatters: const [TelefoneBrasileiroFormatter()],
                       decoration: const InputDecoration(
                         labelText: 'Telefone',
+                        hintText: '(43) 9 9999-9999',
                         prefixIcon: Icon(Icons.phone_outlined),
                       ),
                     ),
@@ -499,8 +625,85 @@ class _ConviteScreenState extends State<ConviteScreen> {
   }
 
   void _mostrarAviso(String mensagem) {
-    ScaffoldMessenger.of(
-      context,
-    ).showSnackBar(SnackBar(content: Text(mensagem)));
+    if (!mounted) return;
+
+    final mensagemMinuscula = mensagem.toLowerCase();
+
+    final sucesso = mensagemMinuscula.contains('sucesso');
+    final recusado = mensagemMinuscula.contains('recusa registrada');
+
+    final IconData icone;
+    final Color cor;
+    final String titulo;
+
+    if (sucesso && !recusado) {
+      icone = Icons.check_circle_rounded;
+      cor = const Color(0xFF25A75A);
+      titulo = 'Presença confirmada!';
+    } else if (recusado) {
+      icone = Icons.info_rounded;
+      cor = const Color(0xFFE000B8);
+      titulo = 'Convite recusado';
+    } else {
+      icone = Icons.warning_amber_rounded;
+      cor = const Color(0xFFFF9800);
+      titulo = 'Atenção!';
+    }
+
+    showDialog<void>(
+      context: context,
+      barrierDismissible: false,
+      builder: (dialogContext) {
+        return AlertDialog(
+          backgroundColor: const Color(0xFFFFFFFF),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(24),
+          ),
+          title: Column(
+            children: [
+              Icon(icone, color: cor, size: 65),
+              const SizedBox(height: 14),
+              Text(
+                titulo,
+                textAlign: TextAlign.center,
+                style: const TextStyle(
+                  color: Color(0xFF300030),
+                  fontSize: 23,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+            ],
+          ),
+          content: Text(
+            mensagem,
+            textAlign: TextAlign.center,
+            style: const TextStyle(color: Color(0xFF574057), fontSize: 17),
+          ),
+          actionsAlignment: MainAxisAlignment.center,
+          actions: [
+            SizedBox(
+              width: 180,
+              height: 48,
+              child: ElevatedButton(
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: const Color(0xFFE000B8),
+                  foregroundColor: Colors.white,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(14),
+                  ),
+                ),
+                onPressed: () {
+                  Navigator.of(dialogContext).pop();
+                },
+                child: const Text(
+                  'Entendi',
+                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                ),
+              ),
+            ),
+          ],
+        );
+      },
+    );
   }
 }
