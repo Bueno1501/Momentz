@@ -81,6 +81,8 @@ flutter:
     - assets/images/momentz_fundo_mobile.png
     - assets/images/fundo_presentes_desktop.png
     - assets/images/fundo_presentes_mobile.png
+    - assets/images/fundo_cadastro_evento_desktop.png
+    - assets/images/fundo_cadastro_evento_mobile.png
     
   # To add assets to your application, add an assets section, like this:
   # assets:
