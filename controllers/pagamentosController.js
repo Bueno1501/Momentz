@@ -258,24 +258,28 @@ const criarCheckoutPresente = async (req, res) => {
   }
 };
 
-// ============================================================
-// VALIDAR ASSINATURA DO WEBHOOK
-// ============================================================
+
+
 
 const assinaturaWebhookValida = (req) => {
   const segredo = process.env.MP_WEBHOOK_SECRET;
   const assinatura = req.get("x-signature");
   const requestId = req.get("x-request-id");
+
+  // Preserva o valor original recebido na URL.
   const dataId = req.query["data.id"];
 
-  if (
-    !segredo ||
-    typeof assinatura !== "string" ||
-    typeof requestId !== "string" ||
-    typeof dataId !== "string" ||
-    !dataId.trim()
-  ) {
+  const rejeitar = (motivo) => {
+    console.warn("Webhook: assinatura rejeitada:", motivo);
     return false;
+  };
+
+  if (!segredo || typeof segredo !== "string") {
+    return rejeitar("segredo não configurado");
+  }
+
+  if (!assinatura || typeof assinatura !== "string") {
+    return rejeitar("x-signature ausente");
   }
 
   const partes = {};
@@ -284,7 +288,7 @@ const assinaturaWebhookValida = (req) => {
     const indice = parte.indexOf("=");
 
     if (indice < 1) {
-      return false;
+      return rejeitar("formato de assinatura inválido");
     }
 
     partes[parte.slice(0, indice).trim()] =
@@ -293,34 +297,43 @@ const assinaturaWebhookValida = (req) => {
 
   const { ts, v1 } = partes;
 
-  if (
-    !/^\d{10,16}$/.test(ts || "") ||
-    !/^[a-f0-9]{64}$/i.test(v1 || "")
-  ) {
-    return false;
+  if (!/^\d{10,16}$/.test(ts || "")) {
+    return rejeitar("timestamp inválido");
   }
 
-  // Converte segundos para milissegundos, quando necessário.
-  const numeroTs = Number(ts);
+  if (!/^[a-f0-9]{64}$/i.test(v1 || "")) {
+    return rejeitar("hash inválido");
+  }
 
+  const numeroTs = Number(ts);
   const timestampMs =
     numeroTs < 100000000000
       ? numeroTs * 1000
       : numeroTs;
 
-  // Tolerância de 15 minutos.
-  if (
-    !Number.isFinite(timestampMs) ||
-    Math.abs(Date.now() - timestampMs) > 15 * 60 * 1000
-  ) {
-    return false;
+  if (!Number.isFinite(timestampMs)) {
+    return rejeitar("timestamp não numérico");
   }
 
-  // Manifesto utilizado na validação HMAC-SHA256.
-  const manifesto =
-    `id:${dataId.toLowerCase()};` +
-    `request-id:${requestId};` +
-    `ts:${ts};`;
+  // Mantemos proteção contra timestamps muito futuros.
+  // Não rejeitamos automaticamente reentregas antigas,
+  // pois a autenticidade depende da assinatura HMAC.
+  if (timestampMs > Date.now() + 5 * 60 * 1000) {
+    return rejeitar("timestamp no futuro");
+  }
+
+  // Montagem do manifesto conforme a documentação.
+  let manifesto = "";
+
+  if (typeof dataId === "string" && dataId.trim()) {
+    manifesto += `id:${dataId.toLowerCase()};`;
+  }
+
+  if (typeof requestId === "string" && requestId) {
+    manifesto += `request-id:${requestId};`;
+  }
+
+  manifesto += `ts:${ts};`;
 
   const calculada = crypto
     .createHmac("sha256", segredo)
@@ -329,11 +342,16 @@ const assinaturaWebhookValida = (req) => {
 
   const recebida = Buffer.from(v1, "hex");
 
-  return (
-    recebida.length === calculada.length &&
-    crypto.timingSafeEqual(recebida, calculada)
-  );
+  if (
+    recebida.length !== calculada.length ||
+    !crypto.timingSafeEqual(recebida, calculada)
+  ) {
+    return rejeitar("HMAC não corresponde");
+  }
+
+  return true;
 };
+
 
 // ============================================================
 // RECEBER WEBHOOK DO MERCADO PAGO
@@ -350,7 +368,7 @@ const receberWebhookMercadoPago = async (req, res) => {
     return res.sendStatus(200);
   }
 
-  const paymentId = req.query["data.id"];
+  const paymentId = req.query["data.id"] ?? req.body?.data?.id;
 
   if (!/^\d+$/.test(paymentId)) {
     return res.sendStatus(400);
