@@ -13,6 +13,7 @@ const fornecedoresRoutes = require('./routes/fornecedoresRoutes');
 const presentesRoutes = require('./routes/presentesRoutes');
 const orcamentoRouter = require('./routes/orcamentoRoutes');
 const mercadoPagoRoutes = require('./routes/mercadoPagoRoutes');
+const pagamentosRoutes = require('./routes/pagamentosRoutes');
 
 const app = express();
 
@@ -27,6 +28,7 @@ app.use('/presentes', presentesRoutes);
 app.use('/fotos', fotosRoutes);
 app.use('/orcamento', orcamentoRouter);
 app.use('/mercadopago', mercadoPagoRoutes);
+app.use('/pagamentos', pagamentosRoutes);
 
 app.get('/', (req, res) => {
     res.send('Momentz ON!');

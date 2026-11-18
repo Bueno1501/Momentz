@@ -776,7 +776,9 @@ class _ConvidadosScreenState extends State<ConvidadosScreen> {
             SizedBox(
               width: larguraBotao,
               child: _botao(
-                enviandoConvite ? 'Enviando convite...' : 'Importar convite',
+                enviandoConvite
+                    ? 'Enviando convite...'
+                    : 'Importar imagem do convite',
                 Icons.upload_file,
                 enviandoConvite ? null : importarConvite,
               ),
