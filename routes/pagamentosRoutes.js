@@ -11,14 +11,22 @@ const {
     receberWebhookMercadoPago
 } = require('../controllers/pagamentosController');
 
-// Checkout: exige sessão válida do convidado.
+const {
+  criarPagamentoPix
+} = require("../controllers/pagamentoPixController");
+
 router.post(
     '/checkout/presente',
     authConvidadoMiddleware,
     criarCheckoutPresente
 );
 
-// Webhook: acesso público, mas com assinatura obrigatória.
+router.post(
+  "/pix",
+  authConvidadoMiddleware,
+  criarPagamentoPix
+);
+
 router.post(
     '/webhook',
     receberWebhookMercadoPago
