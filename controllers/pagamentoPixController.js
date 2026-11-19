@@ -1,15 +1,12 @@
+const crypto = require("node:crypto");
+const conexao = require("../config/db");
 
-const crypto = require('node:crypto');
-const conexao = require('../config/db');
+const { descriptografarToken } = require("../services/mercadoPagoCrypto");
 
-const {
-  descriptografarToken
-} = require('../services/mercadoPagoCrypto');
-
-const MP_API_URL = 'https://api.mercadopago.com';
+const MP_API_URL = "https://api.mercadopago.com";
 
 const WEBHOOK_URL =
-  'https://momentz-production.up.railway.app/pagamentos/webhook';
+  "https://momentz-production.up.railway.app/pagamentos/webhook";
 
 const consultarBanco = (sql, parametros = []) =>
   new Promise((resolve, reject) => {
@@ -20,12 +17,8 @@ const consultarBanco = (sql, parametros = []) =>
   });
 
 const criarPagamentoPix = async (req, res) => {
-  const {
-    presente_id,
-    mensagem,
-    email_pagador,
-    idempotency_key
-  } = req.body || {};
+  const { presente_id, mensagem, email_pagador, idempotency_key } =
+    req.body || {};
 
   const eventoId = req.convidado?.evento_id;
   const convidadoId = req.convidado?.convidado_id;
@@ -33,50 +26,47 @@ const criarPagamentoPix = async (req, res) => {
 
   if (!eventoId || !convidadoId) {
     return res.status(401).json({
-      erro: 'Sessão do convidado inválida.'
+      erro: "Sessão do convidado inválida.",
     });
   }
 
   if (!Number.isSafeInteger(presenteId) || presenteId <= 0) {
     return res.status(400).json({
-      erro: 'Presente inválido.'
+      erro: "Presente inválido.",
     });
   }
 
-  const email = typeof email_pagador === 'string'
-    ? email_pagador.trim().toLowerCase()
-    : '';
+  const email =
+    typeof email_pagador === "string" ? email_pagador.trim().toLowerCase() : "";
 
-  if (
-    email.length > 254 ||
-    !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)
-  ) {
+  if (email.length > 254 || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
     return res.status(400).json({
-      erro: 'Informe um e-mail válido.'
+      erro: "Informe um e-mail válido.",
     });
   }
 
-  if (mensagem != null && typeof mensagem !== 'string') {
+  if (mensagem != null && typeof mensagem !== "string") {
     return res.status(400).json({
-      erro: 'Mensagem inválida.'
+      erro: "Mensagem inválida.",
     });
   }
 
-  const mensagemLimpa = (mensagem || '').trim();
+  const mensagemLimpa = (mensagem || "").trim();
 
   if (mensagemLimpa.length > 300) {
     return res.status(400).json({
-      erro: 'A mensagem deve ter no máximo 300 caracteres.'
+      erro: "A mensagem deve ter no máximo 300 caracteres.",
     });
   }
 
   if (
-    typeof idempotency_key !== 'string' ||
-    !/^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i
-      .test(idempotency_key)
+    typeof idempotency_key !== "string" ||
+    !/^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(
+      idempotency_key,
+    )
   ) {
     return res.status(400).json({
-      erro: 'Informe uma chave de idempotência UUID válida.'
+      erro: "Informe uma chave de idempotência UUID válida.",
     });
   }
 
@@ -99,12 +89,12 @@ const criarPagamentoPix = async (req, res) => {
         AND p.status_produto = 'DISPONIVEL'
       LIMIT 1
       `,
-      [presenteId, eventoId]
+      [presenteId, eventoId],
     );
 
     if (!presentes.length) {
       return res.status(404).json({
-        erro: 'Presente não encontrado ou indisponível.'
+        erro: "Presente não encontrado ou indisponível.",
       });
     }
 
@@ -118,7 +108,7 @@ const criarPagamentoPix = async (req, res) => {
       Math.abs(valor * 100 - centavos) > 0.00001
     ) {
       return res.status(400).json({
-        erro: 'Valor do presente inválido.'
+        erro: "Valor do presente inválido.",
       });
     }
 
@@ -132,12 +122,12 @@ const criarPagamentoPix = async (req, res) => {
       WHERE usuario_id = ?
       LIMIT 1
       `,
-      [presente.administrador_id]
+      [presente.administrador_id],
     );
 
     if (!conexoes.length) {
       return res.status(409).json({
-        erro: 'Administrador sem conexão Mercado Pago.'
+        erro: "Administrador sem conexão Mercado Pago.",
       });
     }
 
@@ -145,17 +135,14 @@ const criarPagamentoPix = async (req, res) => {
 
     if (
       !conta.token_expira_em ||
-      new Date(conta.token_expira_em).getTime() <=
-        Date.now() + 60000
+      new Date(conta.token_expira_em).getTime() <= Date.now() + 60000
     ) {
       return res.status(409).json({
-        erro: 'A conexão Mercado Pago precisa ser renovada.'
+        erro: "A conexão Mercado Pago precisa ser renovada.",
       });
     }
 
-    const token = descriptografarToken(
-      conta.access_token_enc
-    );
+    const token = descriptografarToken(conta.access_token_enc);
 
     // A referência é única no banco.
     // Repetir a tentativa reutiliza o mesmo registro.
@@ -183,8 +170,8 @@ const criarPagamentoPix = async (req, res) => {
         presenteId,
         convidadoId,
         referencia,
-        mensagemLimpa || null
-      ]
+        mensagemLimpa || null,
+      ],
     );
 
     const registros = await consultarBanco(
@@ -201,7 +188,7 @@ const criarPagamentoPix = async (req, res) => {
       WHERE external_reference = ?
       LIMIT 1
       `,
-      [referencia]
+      [referencia],
     );
 
     const pagamento = registros[0];
@@ -211,55 +198,49 @@ const criarPagamentoPix = async (req, res) => {
       Number(pagamento.presente_id) !== presenteId ||
       Number(pagamento.convidado_id) !== Number(convidadoId) ||
       Math.round(Number(pagamento.valor_pagamento) * 100) !== centavos ||
-      (pagamento.mensagem || '') !== mensagemLimpa
+      (pagamento.mensagem || "") !== mensagemLimpa
     ) {
       return res.status(409).json({
-        erro: 'Esta chave já pertence a outra tentativa de pagamento.'
+        erro: "Esta chave já pertence a outra tentativa de pagamento.",
       });
     }
 
-    if (pagamento.status_pagamento !== 'PENDENTE') {
+    if (pagamento.status_pagamento !== "PENDENTE") {
       return res.status(409).json({
-        erro: 'Este pagamento não está mais pendente.'
+        erro: "Este pagamento não está mais pendente.",
       });
     }
 
-    // Repetir a mesma chave no Mercado Pago permite
-    // recuperar a resposta da tentativa original.
-
-    const resposta = await fetch(
-      `${MP_API_URL}/v1/payments`,
-      {
-        method: 'POST',
-        headers: {
-          Authorization: `Bearer ${token}`,
-          'Content-Type': 'application/json',
-          'X-Idempotency-Key': referencia
+    const resposta = await fetch(`${MP_API_URL}/v1/payments`, {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${token}`,
+        "Content-Type": "application/json",
+        "X-Idempotency-Key": referencia,
+      },
+      body: JSON.stringify({
+        transaction_amount: valor,
+        description: `MOMENTZ - ${presente.nome_presente}`,
+        payment_method_id: "pix",
+        external_reference: referencia,
+        notification_url: `${WEBHOOK_URL}?source_news=webhooks`,
+        payer: {
+          email,
         },
-        body: JSON.stringify({
-          transaction_amount: valor,
-          description: `MOMENTZ - ${presente.nome_presente}`,
-          payment_method_id: 'pix',
-          external_reference: referencia,
-          notification_url: WEBHOOK_URL,
-          payer: {
-            email
-          }
-        }),
-        signal: AbortSignal.timeout(15000)
-      }
-    );
+      }),
+      signal: AbortSignal.timeout(15000),
+    });
 
     const dados = await resposta.json();
 
     if (!resposta.ok) {
-      console.error('Erro Mercado Pago Pix:', {
+      console.error("Erro Mercado Pago Pix:", {
         status: resposta.status,
-        mensagem: dados.message || dados.error
+        mensagem: dados.message || dados.error,
       });
 
       return res.status(502).json({
-        erro: 'Não foi possível gerar o Pix. Tente novamente com a mesma chave.'
+        erro: "Não foi possível gerar o Pix. Tente novamente com a mesma chave.",
       });
     }
 
@@ -267,18 +248,17 @@ const criarPagamentoPix = async (req, res) => {
       !dados.id ||
       String(dados.collector_id) !== String(conta.mp_user_id) ||
       String(dados.external_reference) !== referencia ||
-      dados.currency_id !== 'BRL' ||
+      dados.currency_id !== "BRL" ||
       Math.round(Number(dados.transaction_amount) * 100) !== centavos
     ) {
-      console.error('Resposta Pix não corresponde ao pagamento esperado.');
+      console.error("Resposta Pix não corresponde ao pagamento esperado.");
 
       return res.status(502).json({
-        erro: 'Não foi possível validar a cobrança Pix.'
+        erro: "Não foi possível validar a cobrança Pix.",
       });
     }
 
-    const transacao =
-      dados.point_of_interaction?.transaction_data;
+    const transacao = dados.point_of_interaction?.transaction_data;
 
     // Salvar o ID antes de verificar os dados de exibição.
     // Assim a cobrança pode ser localizada mesmo se
@@ -291,51 +271,46 @@ const criarPagamentoPix = async (req, res) => {
       WHERE pagamento_id = ?
         AND (mp_payment_id IS NULL OR mp_payment_id = ?)
       `,
-      [
-        String(dados.id),
-        pagamento.pagamento_id,
-        String(dados.id)
-      ]
+      [String(dados.id), pagamento.pagamento_id, String(dados.id)],
     );
 
     if (atualizacao.affectedRows !== 1) {
       console.error(
-        'Conflito ao associar pagamento Mercado Pago:',
-        pagamento.pagamento_id
+        "Conflito ao associar pagamento Mercado Pago:",
+        pagamento.pagamento_id,
       );
 
       return res.status(409).json({
-        erro: 'Não foi possível associar a cobrança ao pagamento.'
+        erro: "Não foi possível associar a cobrança ao pagamento.",
       });
     }
 
     if (!transacao?.qr_code) {
       return res.status(502).json({
-        erro: 'A cobrança foi registrada, mas o QR Code não está disponível.'
+        erro: "A cobrança foi registrada, mas o QR Code não está disponível.",
       });
     }
 
     return res.status(201).json({
-      mensagem: 'Pix gerado com sucesso.',
+      mensagem: "Pix gerado com sucesso.",
       pagamento_id: pagamento.pagamento_id,
       status: dados.status,
       valor,
       pix: {
         qr_code: transacao.qr_code,
         qr_code_base64: transacao.qr_code_base64 || null,
-        ticket_url: transacao.ticket_url || null
-      }
+        ticket_url: transacao.ticket_url || null,
+      },
     });
-
   } catch (erro) {
-    console.error('Erro ao gerar Pix:', erro.message);
+    console.error("Erro ao gerar Pix:", erro.message);
 
     return res.status(500).json({
-      erro: 'Falha ao processar o Pix. Reutilize a mesma chave ao tentar novamente.'
+      erro: "Falha ao processar o Pix. Reutilize a mesma chave ao tentar novamente.",
     });
   }
 };
 
 module.exports = {
-  criarPagamentoPix
+  criarPagamentoPix,
 };
