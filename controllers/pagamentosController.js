@@ -342,12 +342,24 @@ const assinaturaWebhookValida = (req) => {
 
   const recebida = Buffer.from(v1, "hex");
 
-  if (
-    recebida.length !== calculada.length ||
-    !crypto.timingSafeEqual(recebida, calculada)
-  ) {
-    return rejeitar("HMAC não corresponde");
-  }
+if (
+  recebida.length !== calculada.length ||
+  !crypto.timingSafeEqual(recebida, calculada)
+) {
+  console.warn("Webhook: diagnóstico HMAC:", {
+    dataIdQuery: dataId ?? null,
+    dataIdBody: req.body?.data?.id ?? null,
+    tipoQuery: req.query.type ?? null,
+    tipoBody: req.body?.type ?? null,
+    requestIdPresente: Boolean(requestId),
+    timestampDigitos: ts.length,
+    segredoConfigurado: Boolean(segredo),
+    segredoComprimento: segredo.length,
+    urlRecebida: req.originalUrl
+  });
+
+  return rejeitar("HMAC não corresponde");
+}
 
   return true;
 };
