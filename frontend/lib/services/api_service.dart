@@ -18,10 +18,6 @@ class ApiService {
   static const String _guestEventIdKey = 'guest_event_id';
   static const String _guestEmailKey = 'guest_email';
 
-  // ============================================================
-  // IDENTIFICAR O TIPO DE IMAGEM
-  // ============================================================
-
   static MediaType? _tipoImagem(String nomeArquivo) {
     final extensao = nomeArquivo.split('.').last.toLowerCase();
 
@@ -885,5 +881,109 @@ class ApiService {
     await _storage.delete(key: _guestEventIdKey);
 
     await _storage.delete(key: _guestEmailKey);
+  }
+
+  // ============================================================
+  // PAGAMENTOS DO CONVIDADO
+  // ============================================================
+
+  static Future<String?> obterEmailConvidado() async {
+    return _storage.read(key: _guestEmailKey);
+  }
+
+  static Future<Map<String, dynamic>> _postPagamentoConvidado({
+    required String rota,
+    required Map<String, dynamic> corpo,
+  }) async {
+    String? accessToken = await obterTokenConvidado();
+
+    if (accessToken == null || accessToken.isEmpty) {
+      throw Exception('Sessão do convidado não encontrada.');
+    }
+
+    Future<http.Response> enviar(String token) {
+      return http
+          .post(
+            Uri.parse('$baseUrl$rota'),
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': 'Bearer $token',
+            },
+            body: jsonEncode(corpo),
+          )
+          .timeout(const Duration(seconds: 25));
+    }
+
+    var resposta = await enviar(accessToken);
+
+    if (resposta.statusCode == 401) {
+      accessToken = await renovarSessaoConvidado();
+
+      if (accessToken == null || accessToken.isEmpty) {
+        throw Exception('Sua sessão expirou. Acesse o evento novamente.');
+      }
+
+      resposta = await enviar(accessToken);
+    }
+
+    dynamic dados;
+
+    try {
+      dados = jsonDecode(utf8.decode(resposta.bodyBytes));
+    } catch (_) {
+      throw Exception('O servidor retornou uma resposta inválida.');
+    }
+
+    if (resposta.statusCode < 200 || resposta.statusCode >= 300) {
+      throw Exception(
+        dados is Map
+            ? dados['erro']?.toString() ?? 'Erro HTTP ${resposta.statusCode}.'
+            : 'Erro HTTP ${resposta.statusCode}.',
+      );
+    }
+
+    if (dados is! Map) {
+      throw Exception('Formato de resposta inválido.');
+    }
+
+    return Map<String, dynamic>.from(dados);
+  }
+
+  static Future<Map<String, dynamic>> criarPagamentoPixConvidado({
+    required int presenteId,
+    required String mensagem,
+    required String emailPagador,
+    required String idempotencyKey,
+  }) {
+    return _postPagamentoConvidado(
+      rota: '/pagamentos/pix',
+      corpo: {
+        'presente_id': presenteId,
+        'mensagem': mensagem,
+        'email_pagador': emailPagador.trim().toLowerCase(),
+        'idempotency_key': idempotencyKey,
+      },
+    );
+  }
+
+  static Future<Map<String, dynamic>> criarCheckoutPresenteConvidado({
+    required int presenteId,
+    required String mensagem,
+    required String metodoPagamento,
+    required String idempotencyKey,
+  }) {
+    if (metodoPagamento != 'CARTAO_CREDITO' && metodoPagamento != 'BOLETO') {
+      throw ArgumentError('Método de pagamento inválido.');
+    }
+
+    return _postPagamentoConvidado(
+      rota: '/pagamentos/checkout/presente',
+      corpo: {
+        'presente_id': presenteId,
+        'mensagem': mensagem,
+        'metodo_pagamento': metodoPagamento,
+        'idempotency_key': idempotencyKey,
+      },
+    );
   }
 }

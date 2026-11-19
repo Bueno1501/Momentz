@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:url_launcher/url_launcher.dart';
+import 'pagamento_presente_screen.dart';
 
 import '../services/api_service.dart';
 
@@ -150,7 +151,8 @@ class _PresentesConvidadoScreenState extends State<PresentesConvidadoScreen> {
             child: Image.asset(
               'assets/images/momentz_fundo_desktop.png',
               fit: BoxFit.cover,
-              errorBuilder: (_, __, ___) => Container(color: roxoEscuro),
+              errorBuilder: (context, error, stackTrace) =>
+                  Container(color: roxoEscuro),
             ),
           ),
 
@@ -663,12 +665,13 @@ class _DetalhesPresenteConvidadoScreenState
                         height: 52,
                         child: ElevatedButton.icon(
                           onPressed: () {
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              const SnackBar(
-                                content: Text(
-                                  'A integração do pagamento será implementada na próxima etapa.',
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (_) => PagamentoPresenteScreen(
+                                  presente: widget.presente,
+                                  mensagem: mensagemController.text.trim(),
                                 ),
-                                backgroundColor: roxo,
                               ),
                             );
                           },
