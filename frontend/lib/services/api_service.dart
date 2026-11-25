@@ -343,6 +343,56 @@ class ApiService {
     );
   }
 
+  static Future<String> conectarMercadoPago() async {
+    if (token == null || token!.isEmpty) {
+      throw Exception('Sessão do administrador não encontrada.');
+    }
+
+    final response = await http
+        .post(
+          Uri.parse('$baseUrl/mercadopago/conectar'),
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': 'Bearer $token',
+          },
+        )
+        .timeout(const Duration(seconds: 25));
+
+    dynamic dados;
+
+    try {
+      dados = jsonDecode(utf8.decode(response.bodyBytes));
+    } catch (_) {
+      throw Exception('Resposta inválida do servidor.');
+    }
+
+    if (response.statusCode < 200 || response.statusCode >= 300) {
+      throw Exception(
+        dados is Map
+            ? dados['erro']?.toString() ?? 'Não foi possível iniciar a conexão.'
+            : 'Erro HTTP ${response.statusCode}.',
+      );
+    }
+
+    if (dados is! Map) {
+      throw Exception('Resposta inválida do Mercado Pago.');
+    }
+
+    final authorizationUrl = dados['authorizationUrl']?.toString();
+
+    final uri = authorizationUrl == null
+        ? null
+        : Uri.tryParse(authorizationUrl);
+
+    if (uri == null ||
+        uri.scheme != 'https' ||
+        uri.host != 'auth.mercadopago.com') {
+      throw Exception('URL de autorização inválida.');
+    }
+
+    return authorizationUrl!;
+  }
+
   // ============================================================
   // CADASTRAR PRESENTE
   // ============================================================

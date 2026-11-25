@@ -1,3 +1,5 @@
+import 'package:flutter/foundation.dart';
+import 'package:url_launcher/url_launcher.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:frontend/services/api_service.dart';
@@ -139,25 +141,112 @@ class _PresentesScreenState extends State<PresentesScreen> {
     return 'R\$ ${numero.toStringAsFixed(2).replaceAll('.', ',')}';
   }
 
-  // ============================================================
-  // MERCADO PAGO
-  // ============================================================
-
-  Future<bool> verificarMercadoPago() async {
+  Future<bool?> verificarMercadoPago() async {
     try {
       final resposta = await ApiService.verificarStatusMercadoPago();
 
       return resposta['conectado'] == true &&
           resposta['conta_validada'] == true;
     } catch (erro) {
-      mostrarMensagem('Não foi possível verificar sua conta Mercado Pago.');
-      return false;
+      mostrarMensagem(
+        'Não foi possível verificar sua conta Mercado Pago. '
+        'Tente novamente.',
+      );
+      return null;
     }
   }
 
-  // ============================================================
-  // CADASTRAR / EDITAR PRESENTE
-  // ============================================================
+  Future<void> iniciarConexaoMercadoPago() async {
+    try {
+      final url = await ApiService.conectarMercadoPago();
+      final uri = Uri.parse(url);
+
+      final abriu = await launchUrl(
+        uri,
+        mode: LaunchMode.externalApplication,
+        webOnlyWindowName: kIsWeb ? '_self' : null,
+      );
+
+      if (!abriu) {
+        throw Exception('Não foi possível abrir o Mercado Pago.');
+      }
+    } catch (erro) {
+      if (!mounted) return;
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(erro.toString().replaceFirst('Exception: ', '')),
+        ),
+      );
+    }
+  }
+
+  Future<void> mostrarDialogoConectarMercadoPago() async {
+    await showDialog<void>(
+      context: context,
+      builder: (contextoDialogo) {
+        return AlertDialog(
+          backgroundColor: const Color(0xFF26002F),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(22),
+            side: const BorderSide(color: Color(0xFFE900C5), width: 1.2),
+          ),
+          title: const Row(
+            children: [
+              Icon(
+                Icons.account_balance_wallet_outlined,
+                color: Color(0xFFE900C5),
+              ),
+              SizedBox(width: 12),
+              Expanded(
+                child: Text(
+                  'Conectar Mercado Pago',
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontWeight: FontWeight.bold,
+                    fontSize: 19,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          content: const Text(
+            'Para cadastrar presentes com contribuições financeiras '
+            'pelo MOMENTZ, conecte sua conta Mercado Pago.\n\n'
+            'Os pagamentos dos convidados serão destinados à '
+            'conta que você autorizar.',
+            style: TextStyle(color: Colors.white70, fontSize: 15, height: 1.5),
+          ),
+          actionsPadding: const EdgeInsets.fromLTRB(20, 0, 20, 20),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(contextoDialogo),
+              child: const Text(
+                'Agora não',
+                style: TextStyle(color: Colors.white70),
+              ),
+            ),
+            ElevatedButton.icon(
+              onPressed: () {
+                Navigator.pop(contextoDialogo);
+                iniciarConexaoMercadoPago();
+              },
+              icon: const Icon(Icons.open_in_new),
+              label: const Text('Conectar'),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: const Color(0xFFE900C5),
+                foregroundColor: Colors.white,
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 18,
+                  vertical: 14,
+                ),
+              ),
+            ),
+          ],
+        );
+      },
+    );
+  }
 
   Future<bool> salvarPresente({
     required String nome,
@@ -193,10 +282,14 @@ class _PresentesScreenState extends State<PresentesScreen> {
 
       final conectado = await verificarMercadoPago();
 
-      if (!conectado) {
-        mostrarMensagem(
-          'Conecte e valide sua conta Mercado Pago para cadastrar presentes MOMENTZ.',
-        );
+      if (conectado == null) {
+        return false;
+      }
+
+      if (conectado == false) {
+        if (!mounted) return false;
+
+        await mostrarDialogoConectarMercadoPago();
         return false;
       }
     } else {
