@@ -1,3 +1,5 @@
+import 'dart:async';
+import 'convite_screen.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -318,6 +320,190 @@ class _ConvidadosScreenState extends State<ConvidadosScreen> {
     }
   }
 
+  Future<void> visualizarPreviaConvite() async {
+    final eventoId = widget.eventoId;
+
+    try {
+      final evento = await ApiService.buscarEventoPorId(eventoId);
+
+      if (!mounted || widget.eventoId != eventoId) return;
+
+      final token = evento['token_convite']?.toString();
+
+      if (token == null || token.isEmpty) {
+        throw Exception('Token do convite não encontrado.');
+      }
+
+      ScaffoldMessenger.of(context).hideCurrentSnackBar();
+
+      await Navigator.push<void>(
+        context,
+        MaterialPageRoute<void>(
+          builder: (_) => ConviteScreen(token: token, modoPrevia: true),
+        ),
+      );
+    } catch (e) {
+      if (!mounted || widget.eventoId != eventoId) return;
+
+      aviso('Erro ao visualizar convite: ${mensagemErro(e)}');
+    }
+  }
+
+  Future<void> mostrarAvisoConviteImportado() async {
+    if (!mounted) return;
+
+    final eventoId = widget.eventoId;
+
+    final navigator = Navigator.of(context, rootNavigator: true);
+
+    late final DialogRoute<bool> rota;
+
+    rota = DialogRoute<bool>(
+      context: context,
+      barrierDismissible: false,
+      barrierColor: Colors.black54,
+
+      builder: (dialogContext) {
+        return Dialog(
+          backgroundColor: roxoEscuro,
+          surfaceTintColor: Colors.transparent,
+          alignment: Alignment.center,
+
+          insetPadding: const EdgeInsets.symmetric(
+            horizontal: 24,
+            vertical: 24,
+          ),
+
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(24),
+            side: const BorderSide(color: magenta, width: 1.5),
+          ),
+
+          child: SizedBox(
+            width: 320,
+
+            child: SingleChildScrollView(
+              padding: const EdgeInsets.all(20),
+
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+
+                children: [
+                  // BOTÃO FECHAR
+                  Align(
+                    alignment: Alignment.centerRight,
+                    child: IconButton(
+                      tooltip: 'Fechar',
+                      onPressed: () {
+                        Navigator.of(dialogContext).pop(false);
+                      },
+                      icon: const Icon(
+                        Icons.close,
+                        color: Colors.white70,
+                        size: 23,
+                      ),
+                    ),
+                  ),
+
+                  // ÍCONE DE SUCESSO
+                  const Icon(
+                    Icons.check_circle_rounded,
+                    color: Color(0xFF4ADE80),
+                    size: 60,
+                  ),
+
+                  const SizedBox(height: 16),
+
+                  // TÍTULO
+                  const Text(
+                    'Convite importado!',
+                    textAlign: TextAlign.center,
+                    style: TextStyle(
+                      color: Colors.white,
+                      fontSize: 23,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+
+                  const SizedBox(height: 10),
+
+                  // MENSAGEM
+                  const Text(
+                    'Seu convite foi importado com sucesso.',
+                    textAlign: TextAlign.center,
+                    style: TextStyle(color: lilas, fontSize: 16, height: 1.4),
+                  ),
+
+                  const SizedBox(height: 24),
+
+                  // BOTÃO VER PRÉVIA
+                  SizedBox(
+                    height: 48,
+                    child: ElevatedButton.icon(
+                      onPressed: () {
+                        Navigator.of(dialogContext).pop(true);
+                      },
+
+                      icon: const Icon(Icons.visibility_outlined, size: 21),
+
+                      label: const Text(
+                        'Ver prévia',
+                        style: TextStyle(
+                          fontSize: 17,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: magenta,
+                        foregroundColor: Colors.white,
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(14),
+                        ),
+                      ),
+                    ),
+                  ),
+
+                  const SizedBox(height: 16),
+
+                  const Text(
+                    '',
+                    textAlign: TextAlign.center,
+                    style: TextStyle(color: Colors.white54, fontSize: 12),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        );
+      },
+    );
+
+    final resposta = navigator.push<bool>(rota);
+
+    // FECHAMENTO AUTOMÁTICO
+    final timer = Timer(const Duration(seconds: 7), () {
+      if (navigator.mounted && rota.isActive) {
+        navigator.removeRoute(rota);
+      }
+    });
+
+    bool? abrirPrevia;
+
+    try {
+      abrirPrevia = await resposta;
+    } finally {
+      timer.cancel();
+    }
+
+    if (!mounted || widget.eventoId != eventoId) return;
+
+    if (abrirPrevia == true) {
+      await visualizarPreviaConvite();
+    }
+  }
+
   Future<void> importarConvite() async {
     if (enviandoConvite) return;
 
@@ -347,7 +533,7 @@ class _ConvidadosScreenState extends State<ConvidadosScreen> {
         throw Exception(resposta['erro']);
       }
 
-      aviso('Convite enviado com sucesso!');
+      mostrarAvisoConviteImportado();
     } catch (e) {
       aviso('Erro ao importar convite: ${mensagemErro(e)}');
     } finally {

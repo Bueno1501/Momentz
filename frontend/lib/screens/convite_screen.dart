@@ -118,8 +118,13 @@ class TelefoneBrasileiroFormatter extends TextInputFormatter {
 
 class ConviteScreen extends StatefulWidget {
   final String token;
+  final bool modoPrevia;
 
-  const ConviteScreen({super.key, required this.token});
+  const ConviteScreen({
+    super.key,
+    required this.token,
+    this.modoPrevia = false,
+  });
 
   @override
   State<ConviteScreen> createState() => _ConviteScreenState();
@@ -208,6 +213,8 @@ class _ConviteScreenState extends State<ConviteScreen> {
   }
 
   Future<void> _responderConvite(String status) async {
+    if (widget.modoPrevia) return;
+
     final nome = nomeController.text.trim();
     final email = emailController.text.trim();
     final telefone = telefoneController.text.replaceAll(RegExp(r'\D'), '');
@@ -323,7 +330,7 @@ class _ConviteScreenState extends State<ConviteScreen> {
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Convite'),
+        title: Text(widget.modoPrevia ? 'Prévia do convite' : 'Convite'),
         backgroundColor: const Color(0xFF2B1745),
         foregroundColor: Colors.white,
       ),
@@ -367,7 +374,7 @@ class _ConviteScreenState extends State<ConviteScreen> {
                               Image.network(
                                 urlCompleta,
                                 fit: BoxFit.contain,
-                                errorBuilder: (_, __, ___) => const Padding(
+                                errorBuilder: (_, _, _) => const Padding(
                                   padding: EdgeInsets.all(20),
                                   child: Text(
                                     'Não foi possível carregar a imagem do convite.',
@@ -549,7 +556,7 @@ class _ConviteScreenState extends State<ConviteScreen> {
                           child: SizedBox(
                             height: 56,
                             child: ElevatedButton(
-                              onPressed: enviando
+                              onPressed: enviando || widget.modoPrevia
                                   ? null
                                   : () => _responderConvite('CONFIRMADO'),
                               child: enviando
@@ -573,7 +580,7 @@ class _ConviteScreenState extends State<ConviteScreen> {
                           child: SizedBox(
                             height: 56,
                             child: OutlinedButton(
-                              onPressed: enviando
+                              onPressed: enviando || widget.modoPrevia
                                   ? null
                                   : () => _responderConvite('RECUSADO'),
                               child: enviando
