@@ -26,11 +26,11 @@ const upload = multer({
 
 const {
     cadastrarEvento,
-    listarEvento,
     buscarEventoUsuario,
     acessarEvento,
     buscarEventoPorToken,
     importarConvite,
+    importarFundoConvite,
     buscarEventoPorId
 } = require('../controllers/eventosController');
 
@@ -41,7 +41,6 @@ const {
 } = require('../controllers/convidadosController');
 
 
-// ROTAS ADMINISTRATIVAS
 router.post('/', authAdminMiddleware, cadastrarEvento);
 
 router.get('/meus-eventos', authAdminMiddleware, buscarEventoUsuario);
@@ -53,10 +52,16 @@ router.put(
     importarConvite
 );
 
+router.put(
+    '/:eventoId/fundo-convite',
+    authAdminMiddleware,
+    upload.single('fundo'),
+    importarFundoConvite
+);
+
 router.get('/:eventoId', authAdminMiddleware, buscarEventoPorId);
 
 
-// ROTAS PÚBLICAS
 router.post('/acessar', acessarEvento);
 
 router.get('/convite/:token', buscarEventoPorToken);
