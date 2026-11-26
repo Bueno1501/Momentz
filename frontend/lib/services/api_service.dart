@@ -322,10 +322,6 @@ class ApiService {
     return Map<String, dynamic>.from(_respostaConvidado(response));
   }
 
-  // ============================================================
-  // MERCADO PAGO
-  // ============================================================
-
   static Future<Map<String, dynamic>> verificarStatusMercadoPago() async {
     final response = await http.get(
       Uri.parse('$baseUrl/mercadopago/status'),
@@ -764,6 +760,80 @@ class ApiService {
     }
 
     return {'erro': 'Erro ao enviar o convite', 'status': response.statusCode};
+  }
+
+  static Future<Map<String, dynamic>> uploadFundoConvite({
+    required Uint8List bytes,
+    required String nomeArquivo,
+    required int eventoId,
+  }) async {
+    if (token == null || token!.isEmpty) {
+      throw Exception('Administrador não autenticado.');
+    }
+
+    if (bytes.isEmpty) {
+      throw Exception('A imagem selecionada está vazia.');
+    }
+
+    if (bytes.length > 10 * 1024 * 1024) {
+      throw Exception('A imagem deve possuir até 10 MB.');
+    }
+
+    final nome = nomeArquivo.toLowerCase();
+
+    if (!nome.endsWith('.jpg') &&
+        !nome.endsWith('.jpeg') &&
+        !nome.endsWith('.png') &&
+        !nome.endsWith('.webp')) {
+      throw Exception('Selecione uma imagem JPG, JPEG, PNG ou WEBP.');
+    }
+
+    final uri = Uri.parse('$baseUrl/eventos/$eventoId/fundo-convite');
+
+    final requisicao = http.MultipartRequest('PUT', uri);
+
+    requisicao.headers['Authorization'] = 'Bearer $token';
+
+    requisicao.files.add(
+      http.MultipartFile.fromBytes(
+        'fundo',
+        bytes,
+        filename: nomeArquivo,
+        contentType: _tipoImagem(nomeArquivo),
+      ),
+    );
+
+    final respostaStream = await requisicao.send().timeout(
+      const Duration(seconds: 60),
+    );
+
+    final resposta = await http.Response.fromStream(
+      respostaStream,
+    ).timeout(const Duration(seconds: 60));
+
+    Map<String, dynamic> dados;
+
+    try {
+      final json = jsonDecode(resposta.body);
+
+      if (json is! Map<String, dynamic>) {
+        throw const FormatException('Resposta inválida.');
+      }
+
+      dados = json;
+    } on FormatException {
+      throw Exception(
+        'Resposta inválida do servidor (${resposta.statusCode}).',
+      );
+    }
+
+    if (resposta.statusCode == 200) {
+      return dados;
+    }
+
+    throw Exception(
+      dados['erro'] ?? 'Não foi possível atualizar o fundo do convite.',
+    );
   }
 
   static Future<Map<String, dynamic>> buscarOrcamento(int eventoId) async {

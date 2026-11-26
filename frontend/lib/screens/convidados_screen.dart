@@ -339,7 +339,8 @@ class _ConvidadosScreenState extends State<ConvidadosScreen> {
       await Navigator.push<void>(
         context,
         MaterialPageRoute<void>(
-          builder: (_) => ConviteScreen(token: token, modoPrevia: true),
+          builder: (_) =>
+              ConviteScreen(token: token, modoPrevia: true, eventoId: eventoId),
         ),
       );
     } catch (e) {

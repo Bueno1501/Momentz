@@ -1,5 +1,5 @@
 import 'dart:convert';
-
+import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:frontend/services/api_service.dart';
@@ -119,11 +119,13 @@ class TelefoneBrasileiroFormatter extends TextInputFormatter {
 class ConviteScreen extends StatefulWidget {
   final String token;
   final bool modoPrevia;
+  final int? eventoId;
 
   const ConviteScreen({
     super.key,
     required this.token,
     this.modoPrevia = false,
+    this.eventoId,
   });
 
   @override
@@ -132,6 +134,7 @@ class ConviteScreen extends StatefulWidget {
 
 class _ConviteScreenState extends State<ConviteScreen> {
   Map<String, dynamic>? convite;
+  bool enviandoFundo = false;
   bool carregando = true;
   String? erro;
 
@@ -159,6 +162,84 @@ class _ConviteScreenState extends State<ConviteScreen> {
     acompanhantes8Controller.dispose();
 
     super.dispose();
+  }
+
+  Future<void> alterarFundoConvite() async {
+    final eventoId = widget.eventoId;
+
+    if (!widget.modoPrevia ||
+        eventoId == null ||
+        enviandoFundo ||
+        convite == null) {
+      return;
+    }
+
+    setState(() => enviandoFundo = true);
+
+    try {
+      final resultado = await FilePicker.pickFiles(
+        type: FileType.custom,
+        allowedExtensions: ['jpg', 'jpeg', 'png', 'webp'],
+      );
+
+      if (!mounted || resultado.isEmpty) return;
+
+      final arquivo = resultado.first;
+
+      final bytes = await arquivo.readAsBytes();
+
+      if (!mounted) return;
+
+      if (bytes.isEmpty) {
+        throw Exception('A imagem selecionada está vazia.');
+      }
+
+      if (bytes.length > 10 * 1024 * 1024) {
+        throw Exception('A imagem deve possuir até 10 MB.');
+      }
+
+      final resposta = await ApiService.uploadFundoConvite(
+        bytes: bytes,
+        nomeArquivo: arquivo.name,
+        eventoId: eventoId,
+      );
+
+      if (!mounted) return;
+
+      final novaUrl = resposta['fundo_convite_url']?.toString();
+
+      if (novaUrl == null || novaUrl.isEmpty) {
+        throw Exception('Não foi possível carregar o novo fundo.');
+      }
+
+      setState(() {
+        convite!['fundo_convite_url'] = novaUrl;
+      });
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Fundo do convite atualizado com sucesso!'),
+          backgroundColor: Color(0xFF50004F),
+          behavior: SnackBarBehavior.floating,
+          duration: Duration(seconds: 3),
+        ),
+      );
+    } catch (e) {
+      if (!mounted) return;
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(e.toString().replaceFirst('Exception: ', '')),
+          backgroundColor: Colors.red.shade800,
+          behavior: SnackBarBehavior.floating,
+          duration: const Duration(seconds: 4),
+        ),
+      );
+    } finally {
+      if (mounted) {
+        setState(() => enviandoFundo = false);
+      }
+    }
   }
 
   Future<void> buscarEvento() async {
@@ -297,6 +378,38 @@ class _ConviteScreenState extends State<ConviteScreen> {
     }
   }
 
+  Widget fundoPadraoConvite() {
+    return const DecoratedBox(
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [Color(0xFF50004F), Color(0xFF210020), Color(0xFF120012)],
+        ),
+      ),
+    );
+  }
+
+  Widget construirFundoConvite() {
+    final fundoUrl = convite?['fundo_convite_url']?.toString() ?? '';
+
+    final uri = Uri.tryParse(fundoUrl);
+
+    if (uri == null || uri.scheme != 'https' || uri.host.isEmpty) {
+      return fundoPadraoConvite();
+    }
+
+    return Image.network(
+      fundoUrl,
+      fit: BoxFit.cover,
+      width: double.infinity,
+      height: double.infinity,
+      errorBuilder: (_, _, _) {
+        return fundoPadraoConvite();
+      },
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     if (carregando) {
@@ -333,15 +446,40 @@ class _ConviteScreenState extends State<ConviteScreen> {
         title: Text(widget.modoPrevia ? 'Prévia do convite' : 'Convite'),
         backgroundColor: const Color(0xFF2B1745),
         foregroundColor: Colors.white,
+
+        actions: [
+          if (widget.modoPrevia && widget.eventoId != null)
+            Padding(
+              padding: const EdgeInsets.only(right: 12),
+              child: TextButton.icon(
+                onPressed: enviandoFundo ? null : alterarFundoConvite,
+                icon: enviandoFundo
+                    ? const SizedBox(
+                        width: 18,
+                        height: 18,
+                        child: CircularProgressIndicator(
+                          strokeWidth: 2,
+                          color: Colors.white,
+                        ),
+                      )
+                    : const Icon(Icons.wallpaper_rounded, size: 20),
+                label: Text(enviandoFundo ? 'Enviando...' : 'Alterar fundo'),
+                style: TextButton.styleFrom(
+                  foregroundColor: Colors.white,
+                  backgroundColor: const Color(0xFFE000B8),
+                  disabledForegroundColor: Colors.white70,
+                  disabledBackgroundColor: const Color(0xFF50004F),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                ),
+              ),
+            ),
+        ],
       ),
       body: Stack(
         children: [
-          Positioned.fill(
-            child: Image.asset(
-              'assets/images/fundo_convite.jpeg',
-              fit: BoxFit.cover,
-            ),
-          ),
+          Positioned.fill(child: construirFundoConvite()),
           Positioned.fill(
             child: Container(
               color: const Color(0xFF180824).withValues(alpha: 0.65),
