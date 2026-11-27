@@ -553,6 +553,74 @@ const buscarEventoPorId = (req, res) => {
   });
 };
 
+const gerarTokenGaleria = async (req, res) => {
+    const eventoId = Number(req.params.eventoId);
+    const usuarioId = req.usuario.usuario_id;
+
+    if (!Number.isSafeInteger(eventoId) || eventoId <= 0) {
+        return res.status(400).json({
+            erro: 'ID do evento inválido.'
+        });
+    }
+
+    const consultarBanco = (sql, parametros) =>
+        new Promise((resolve, reject) => {
+            conexao.query(sql, parametros, (erro, resultado) => {
+                if (erro) return reject(erro);
+                resolve(resultado);
+            });
+        });
+
+    try {
+        const novoToken = crypto.randomBytes(32).toString('hex');
+
+        const sqlAtualizar = `
+            UPDATE evento
+            SET token_galeria = ?
+            WHERE evento_id = ?
+              AND usuario_id = ?
+              AND token_galeria IS NULL
+        `;
+
+        await consultarBanco(sqlAtualizar, [
+            novoToken,
+            eventoId,
+            usuarioId
+        ]);
+
+        const sqlBuscar = `
+            SELECT evento_id, token_galeria
+            FROM evento
+            WHERE evento_id = ?
+              AND usuario_id = ?
+        `;
+
+        const eventos = await consultarBanco(sqlBuscar, [
+            eventoId,
+            usuarioId
+        ]);
+
+        if (eventos.length === 0) {
+            return res.status(404).json({
+                erro: 'Evento não encontrado ou não pertence a este administrador.'
+            });
+        }
+
+        return res.status(200).json({
+            mensagem: 'Token da galeria obtido com sucesso!',
+            evento_id: eventos[0].evento_id,
+            token_galeria: eventos[0].token_galeria
+        });
+
+    } catch (erro) {
+        console.error('Erro ao gerar token da galeria:', erro);
+
+        return res.status(500).json({
+            erro: 'Não foi possível gerar o token da galeria.'
+        });
+    }
+};
+
 module.exports = {
   cadastrarEvento,
   buscarEventoUsuario,
@@ -561,4 +629,5 @@ module.exports = {
   importarConvite,
   importarFundoConvite,
   buscarEventoPorId,
+  gerarTokenGaleria
 };

@@ -1,71 +1,74 @@
-
-const express = require('express');
-const multer = require('multer');
+const express = require("express");
+const multer = require("multer");
 
 const router = express.Router();
 
 const upload = multer({
-    storage: multer.memoryStorage(),
-    limits: {
-        fileSize: 10 * 1024 * 1024
-    },
-    fileFilter: (req, file, cb) => {
+  storage: multer.memoryStorage(),
+  limits: {
+    fileSize: 10 * 1024 * 1024,
+  },
+  fileFilter: (req, file, cb) => {
+    console.log("Arquivo recebido na galeria", {
+      nome: file.originalname,
+      mimetype: file.mimetype,
+    });
 
-        console.log('Arquivo recebido na galeria', {
-            nome: file.originalname,
-            mimetype: file.mimetype
-        });
-
-        if (!file.mimetype.startsWith('image/')) {
-            return cb(new Error('Envie somente arquivos de imagem'));
-        }
-
-        cb(null, true);
+    if (!file.mimetype.startsWith("image/")) {
+      return cb(new Error("Envie somente arquivos de imagem"));
     }
+
+    cb(null, true);
+  },
 });
 
 const {
-    cadastrarEvento,
-    buscarEventoUsuario,
-    acessarEvento,
-    buscarEventoPorToken,
-    importarConvite,
-    importarFundoConvite,
-    buscarEventoPorId
-} = require('../controllers/eventosController');
+  cadastrarEvento,
+  buscarEventoUsuario,
+  acessarEvento,
+  buscarEventoPorToken,
+  importarConvite,
+  importarFundoConvite,
+  buscarEventoPorId,
+  gerarTokenGaleria,
+} = require("../controllers/eventosController");
 
-const authAdminMiddleware = require('../middlewares/authAdminMiddleware');
+const authAdminMiddleware = require("../middlewares/authAdminMiddleware");
 
 const {
-    cadastrarConvidadoPublico
-} = require('../controllers/convidadosController');
+  cadastrarConvidadoPublico,
+} = require("../controllers/convidadosController");
 
+router.post("/", authAdminMiddleware, cadastrarEvento);
 
-router.post('/', authAdminMiddleware, cadastrarEvento);
-
-router.get('/meus-eventos', authAdminMiddleware, buscarEventoUsuario);
+router.get("/meus-eventos", authAdminMiddleware, buscarEventoUsuario);
 
 router.put(
-    '/:eventoId/convite',
-    authAdminMiddleware,
-    upload.single('convite'),
-    importarConvite
+  "/:eventoId/convite",
+  authAdminMiddleware,
+  upload.single("convite"),
+  importarConvite,
 );
 
 router.put(
-    '/:eventoId/fundo-convite',
-    authAdminMiddleware,
-    upload.single('fundo'),
-    importarFundoConvite
+  "/:eventoId/fundo-convite",
+  authAdminMiddleware,
+  upload.single("fundo"),
+  importarFundoConvite,
 );
 
-router.get('/:eventoId', authAdminMiddleware, buscarEventoPorId);
+router.post(
+  "/:eventoId/galeria/qrcode",
+  authAdminMiddleware,
+  gerarTokenGaleria,
+);
 
+router.get("/:eventoId", authAdminMiddleware, buscarEventoPorId);
 
-router.post('/acessar', acessarEvento);
+router.post("/acessar", acessarEvento);
 
-router.get('/convite/:token', buscarEventoPorToken);
+router.get("/convite/:token", buscarEventoPorToken);
 
-router.post('/publico/:token', cadastrarConvidadoPublico);
+router.post("/publico/:token", cadastrarConvidadoPublico);
 
 module.exports = router;
